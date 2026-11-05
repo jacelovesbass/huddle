@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="45%" stop-color="#f6c452"/>
+      <stop offset="100%" stop-color="#d79a1f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="46%" r="50%">
+      <stop offset="0%" stop-color="#f6c452" stop-opacity=".40"/>
+      <stop offset="60%" stop-color="#f6c452" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#f6c452" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="#0f1115"/>
+  <circle cx="256" cy="236" r="190" fill="url(#glow)"/>
+
+  <!-- the halo, blurred copy underneath for the lit edge -->
+  <ellipse cx="256" cy="236" rx="150" ry="52"
+           fill="none" stroke="#f6c452" stroke-width="30"
+           opacity=".45" filter="url(#soft)"/>
+  <ellipse cx="256" cy="236" rx="150" ry="52"
+           fill="none" stroke="url(#gold)" stroke-width="26"/>
+  <ellipse cx="256" cy="229" rx="150" ry="52"
+           fill="none" stroke="#fff6dc" stroke-width="5" opacity=".65"/>
+</svg>

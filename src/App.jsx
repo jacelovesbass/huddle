@@ -55,7 +55,7 @@ function NameGate({ onDone }) {
   const [v, setV] = useState('');
   return (
     <form className="center gate" onSubmit={e => { e.preventDefault(); v.trim() && onDone(v.trim()); }}>
-      <h1>Huddle</h1>
+      <h1>Pure Chat</h1>
       <p className="muted">A private place for your group.</p>
       <input autoFocus value={v} onChange={e => setV(e.target.value)} placeholder="Your name" maxLength={24} />
       <button disabled={!v.trim()}>Continue</button>
@@ -94,7 +94,7 @@ function RoomGate({ onDone }) {
 
   return (
     <div className="center gate">
-      <h1>Huddle</h1>
+      <h1>Pure Chat</h1>
       <p className="muted">Start a group, then invite your friends.</p>
 
       {mine.length > 0 && (
@@ -135,7 +135,7 @@ function Chat({ name, room, onLeave }) {
   // Share sheet on phones, clipboard everywhere else.
   async function invite() {
     const url = `${location.origin}${location.pathname}#${room.join_code}`;
-    const text = `Join ${room.name} on Huddle`;
+    const text = `Join ${room.name} on Pure Chat`;
     try {
       if (navigator.share) return await navigator.share({ title: text, url });
       await navigator.clipboard.writeText(url);
