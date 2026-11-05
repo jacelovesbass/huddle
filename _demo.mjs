@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const URL = 'https://jacelovesbass.github.io/huddle/';
+const URL = 'https://jacelovesbass.github.io/purechat/';
 const b = await chromium.launch();
 const open = async (name, url = URL) => {
   const p = await (await b.newContext({ viewport:{width:1280,height:760} })).newPage();

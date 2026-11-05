@@ -59,7 +59,13 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
   align-items: center;
 }
 
+.halo { display: block; overflow: visible; filter: drop-shadow(0 0 14px rgba(246, 196, 82, .35)); }
+
+.chat header .title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.chat header .mark { flex: none; filter: drop-shadow(0 0 7px rgba(246, 196, 82, .3)); }
+
 .gate { gap: 10px; padding: 24px; max-width: 360px; margin: 0 auto; }
+.gate .halo { margin-bottom: 2px; }
 .gate h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
 .gate p { margin: 0 0 8px; }
 .gate form { width: 100%; display: flex; flex-direction: column; gap: 10px; }

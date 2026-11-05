@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const URL = 'https://jacelovesbass.github.io/huddle/#3YH91';
+const URL = 'https://jacelovesbass.github.io/purechat/#3YH91';
 const b = await chromium.launch();
 
 const variants = {

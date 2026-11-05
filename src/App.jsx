@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
 
+// The halo. Inline so it scales and needs no path juggling under a base path.
+function Halo({ size = 64, className = '' }) {
+  const id = 'halo' + size;
+  return (
+    <svg className={'halo ' + className} width={size} height={size * 0.42} viewBox="0 0 320 134" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe9a8" />
+          <stop offset="45%" stopColor="#f6c452" />
+          <stop offset="100%" stopColor="#d79a1f" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="160" cy="70" rx="138" ry="48" fill="none" stroke={`url(#${id})`} strokeWidth="22" />
+      <ellipse cx="160" cy="63" rx="138" ry="48" fill="none" stroke="#fff6dc" strokeWidth="4" opacity=".6" />
+    </svg>
+  );
+}
+
 const code = () => Math.random().toString(36).slice(2, 7).toUpperCase();
 const store = {
   get: k => localStorage.getItem('huddle.' + k) || '',
@@ -55,6 +73,7 @@ function NameGate({ onDone }) {
   const [v, setV] = useState('');
   return (
     <form className="center gate" onSubmit={e => { e.preventDefault(); v.trim() && onDone(v.trim()); }}>
+      <Halo size={92} />
       <h1>Pure Chat</h1>
       <p className="muted">A private place for your group.</p>
       <input autoFocus value={v} onChange={e => setV(e.target.value)} placeholder="Your name" maxLength={24} />
@@ -94,6 +113,7 @@ function RoomGate({ onDone }) {
 
   return (
     <div className="center gate">
+      <Halo size={92} />
       <h1>Pure Chat</h1>
       <p className="muted">Start a group, then invite your friends.</p>
 
@@ -190,7 +210,8 @@ function Chat({ name, room, onLeave }) {
   return (
     <div className="chat">
       <header>
-        <div>
+        <div className="title">
+          <Halo size={30} className="mark" />
           <strong>{room.name}</strong>
           <span className="code">{room.join_code}</span>
         </div>

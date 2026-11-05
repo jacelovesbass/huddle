@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const p = await (await b.newContext({ viewport:{width:390,height:560} })).newPage();
+await p.goto('http://localhost:5173');
+await p.waitForSelector('.gate');
+await p.screenshot({ path:'local-gate.png' });
+await p.getByPlaceholder('Your name').fill('Jason');
+await p.getByRole('button',{name:'Continue'}).click();
+await p.getByPlaceholder('Group name').fill('Pure');
+await p.getByRole('button',{name:'Create group'}).click();
+await p.waitForSelector('.chat');
+await p.getByPlaceholder('Message').fill('halo check');
+await p.getByRole('button',{name:'Send'}).click();
+await p.waitForTimeout(900);
+await p.screenshot({ path:'local-chat.png' });
+await b.close();

@@ -1,7 +1,7 @@
 // A third person opens an invite link and lands straight in the room.
 import { chromium } from 'playwright';
 
-const URL = 'https://jacelovesbass.github.io/huddle';
+const URL = 'https://jacelovesbass.github.io/purechat';
 const browser = await chromium.launch();
 
 const open = async (name, url = URL) => {
