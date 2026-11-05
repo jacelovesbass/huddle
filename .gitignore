@@ -6,3 +6,5 @@ dist/
 *.png
 !public/**/*.png
 .DS_Store
+vite.log
+*.log
