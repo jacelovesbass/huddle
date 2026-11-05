@@ -64,7 +64,12 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .chat header .title { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .chat header .mark { flex: none; filter: drop-shadow(0 0 7px rgba(246, 196, 82, .3)); }
 
-.gate { gap: 10px; padding: 24px; max-width: 360px; margin: 0 auto; }
+.gate {
+  gap: 10px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  max-width: 360px;
+  margin: 0 auto;
+}
 .gate .halo { margin-bottom: 2px; }
 .gate h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
 .gate p { margin: 0 0 8px; }
@@ -106,12 +111,24 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  /* Installed to the home screen, iOS draws the page under the status bar.
+     Without the inset the clock and battery land on top of the header. */
+  padding-block: calc(14px + env(safe-area-inset-top)) 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
 
+/* A long group name must not push into the buttons. */
+.chat header .title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat header .actions { flex: none; }
+
 .chat header .code {
+  flex: none;
   margin-left: 8px;
   padding: 2px 7px;
   border-radius: 6px;
@@ -173,6 +190,15 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 }
 
 .person .when { margin-left: auto; font-size: 13px; }
+
+.leave {
+  width: 100%;
+  margin-top: 16px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: #ff6b6b;
+  font-weight: 500;
+}
 
 .dot {
   width: 9px;

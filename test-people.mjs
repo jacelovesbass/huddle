@@ -35,8 +35,13 @@ console.log('Jason sees:', names.map(n => n.replace(/\s+/g, ' ').trim()));
 if (!names.some(n => n.includes('Sam'))) { console.log('FAIL: silent member missing'); process.exit(1); }
 console.log('PASS: silent member listed');
 
-const onlineCount = await a.locator('.dot.on').count();
-console.log(onlineCount >= 2 ? 'PASS: both show online' : `PARTIAL: ${onlineCount} online dots`);
+// Presence syncs over a websocket, so wait for the state rather than guessing a delay.
+let onlineCount = 0;
+for (let i = 0; i < 30 && onlineCount < 2; i++) {
+  onlineCount = await a.locator('.dot.on').count();
+  if (onlineCount < 2) await a.waitForTimeout(500);
+}
+console.log(onlineCount >= 2 ? 'PASS: both show online' : `FAIL: only ${onlineCount} online after 15s`);
 
 await a.screenshot({ path: 'people.png' });
 

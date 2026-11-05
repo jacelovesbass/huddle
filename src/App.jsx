@@ -220,7 +220,6 @@ function Chat({ name, room, onLeave }) {
             People {people.length > 0 && <span className="pill">{people.length}</span>}
           </button>
           <button className="link" onClick={invite}>{copied ? 'Copied' : 'Invite'}</button>
-          <button className="link" onClick={onLeave}>Leave</button>
         </div>
       </header>
 
@@ -239,6 +238,7 @@ function Chat({ name, room, onLeave }) {
                 <span className="muted when">{online.includes(p.name) ? 'online' : 'offline'}</span>
               </div>
             ))}
+            <button className="leave" onClick={onLeave}>Leave group</button>
           </div>
         </div>
       )}
