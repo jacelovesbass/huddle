@@ -7,6 +7,16 @@ const store = {
   set: (k, v) => localStorage.setItem('huddle.' + k, v),
 };
 
+// Every group you have ever been in, so leaving one never loses its code.
+const history_ = {
+  all: () => { try { return JSON.parse(store.get('rooms') || '[]'); } catch { return []; } },
+  add: r => {
+    const kept = history_.all().filter(x => x.id !== r.id);
+    store.set('rooms', JSON.stringify([{ id: r.id, name: r.name, join_code: r.join_code }, ...kept].slice(0, 20)));
+  },
+  drop: id => store.set('rooms', JSON.stringify(history_.all().filter(x => x.id !== id))),
+};
+
 export default function App() {
   const [name, setName] = useState(store.get('name'));
   const [room, setRoom] = useState(null);
@@ -18,7 +28,7 @@ export default function App() {
     const id = store.get('roomId');
 
     const done = r => {
-      if (r) { store.set('roomId', r.id); setRoom(r); }
+      if (r) { store.set('roomId', r.id); history_.add(r); setRoom(r); }
       setBooting(false);
     };
 
@@ -36,7 +46,7 @@ export default function App() {
 
   if (booting) return <div className="center muted">Loading…</div>;
   if (!name) return <NameGate onDone={n => { store.set('name', n); setName(n); }} />;
-  if (!room) return <RoomGate onDone={r => { store.set('roomId', r.id); setRoom(r); }} />;
+  if (!room) return <RoomGate onDone={r => { store.set('roomId', r.id); history_.add(r); setRoom(r); }} />;
 
   return <Chat name={name} room={room} onLeave={() => { store.set('roomId', ''); setRoom(null); }} />;
 }
@@ -73,10 +83,32 @@ function RoomGate({ onDone }) {
     data ? onDone(data) : setErr('No group with that code.');
   }
 
+  const mine = history_.all();
+
+  async function reopen(r) {
+    const { data } = await supabase.from('rooms').select('*').eq('id', r.id).maybeSingle();
+    if (data) return onDone(data);
+    history_.drop(r.id);
+    setErr(`"${r.name}" no longer exists.`);
+  }
+
   return (
     <div className="center gate">
       <h1>Huddle</h1>
       <p className="muted">Start a group, then invite your friends.</p>
+
+      {mine.length > 0 && (
+        <div className="recent">
+          <div className="label">Your groups</div>
+          {mine.map(r => (
+            <button key={r.id} type="button" className="recent-row" onClick={() => reopen(r)}>
+              <span>{r.name}</span>
+              <span className="code">{r.join_code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={create}>
         <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="Group name" maxLength={32} />
         <button disabled={!newName.trim()}>Create group</button>
