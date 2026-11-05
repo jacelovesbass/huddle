@@ -76,14 +76,15 @@ function RoomGate({ onDone }) {
   return (
     <div className="center gate">
       <h1>Huddle</h1>
+      <p className="muted">Start a group, then invite your friends.</p>
+      <form onSubmit={create}>
+        <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="Group name" maxLength={32} />
+        <button disabled={!newName.trim()}>Create group</button>
+      </form>
+      <div className="or">or join one you were sent</div>
       <form onSubmit={enter}>
         <input value={join} onChange={e => setJoin(e.target.value)} placeholder="Join code" maxLength={5} />
-        <button disabled={!join.trim()}>Join group</button>
-      </form>
-      <div className="or">or</div>
-      <form onSubmit={create}>
-        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="New group name" maxLength={32} />
-        <button className="ghost" disabled={!newName.trim()}>Create group</button>
+        <button className="ghost" disabled={!join.trim()}>Join group</button>
       </form>
       {err && <p className="err">{err}</p>}
     </div>
