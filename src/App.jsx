@@ -127,6 +127,9 @@ function Chat({ name, room, onLeave }) {
   const [msgs, setMsgs] = useState([]);
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [online, setOnline] = useState([]);
+  const [showPeople, setShowPeople] = useState(false);
   const end = useRef(null);
 
   // Share sheet on phones, clipboard everywhere else.
@@ -143,18 +146,36 @@ function Chat({ name, room, onLeave }) {
 
   useEffect(() => {
     let live = true;
+
+    const loadPeople = () => supabase.from('members').select('*')
+      .eq('room_id', room.id).order('joined_at')
+      .then(({ data }) => live && setPeople(data || []));
+
     supabase.from('messages').select('*').eq('room_id', room.id)
       .order('created_at').limit(200)
       .then(({ data }) => live && setMsgs(data || []));
 
-    const ch = supabase.channel('room:' + room.id)
+    // Record that I am here, then read the roster.
+    supabase.from('members')
+      .upsert({ room_id: room.id, name, last_seen: new Date().toISOString() },
+              { onConflict: 'room_id,name' })
+      .then(loadPeople);
+
+    const ch = supabase.channel('room:' + room.id, { config: { presence: { key: name } } })
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
         ({ new: m }) => setMsgs(p => p.some(x => x.id === m.id) ? p : [...p, m]))
-      .subscribe();
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'members', filter: `room_id=eq.${room.id}` },
+        loadPeople)
+      .on('presence', { event: 'sync' },
+        () => setOnline(Object.keys(ch.presenceState())))
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') ch.track({ name, at: Date.now() });
+      });
 
     return () => { live = false; supabase.removeChannel(ch); };
-  }, [room.id]);
+  }, [room.id, name]);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs.length]);
 
@@ -174,10 +195,32 @@ function Chat({ name, room, onLeave }) {
           <span className="code">{room.join_code}</span>
         </div>
         <div className="actions">
+          <button className="link" onClick={() => setShowPeople(true)}>
+            People {people.length > 0 && <span className="pill">{people.length}</span>}
+          </button>
           <button className="link" onClick={invite}>{copied ? 'Copied' : 'Invite'}</button>
           <button className="link" onClick={onLeave}>Leave</button>
         </div>
       </header>
+
+      {showPeople && (
+        <div className="sheet" onClick={() => setShowPeople(false)}>
+          <div className="sheet-card" onClick={e => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong>In this group</strong>
+              <button className="link" onClick={() => setShowPeople(false)}>Done</button>
+            </div>
+            {people.length === 0 && <p className="muted">Nobody yet.</p>}
+            {people.map(p => (
+              <div key={p.name} className="person">
+                <span className={'dot ' + (online.includes(p.name) ? 'on' : '')} />
+                <span>{p.name}{p.name === name && <span className="muted"> (you)</span>}</span>
+                <span className="muted when">{online.includes(p.name) ? 'online' : 'offline'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <main>
         {msgs.length === 0 && <p className="muted empty">No messages yet. Say something.</p>}
