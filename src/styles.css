@@ -6,6 +6,7 @@
   --muted: #8b93a3;
   --mine: #2f6df6;
   --theirs: #242935;
+  --column: 760px;
 }
 
 * { box-sizing: border-box; }
@@ -140,6 +141,8 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 
 .sheet-card {
   width: 100%;
+  max-width: var(--column);
+  margin-inline: auto;
   max-height: 70vh;
   overflow-y: auto;
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
@@ -189,8 +192,16 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .row { display: flex; }
 .row.mine { justify-content: flex-end; }
 
+/* On a wide screen, keep the conversation in a centred column. Without this
+   the bubbles hug opposite edges of the window and read as unrelated. */
+.chat header,
+.chat main,
+.chat form {
+  padding-inline: max(16px, calc((100% - var(--column)) / 2));
+}
+
 .bubble {
-  max-width: 78%;
+  max-width: min(78%, 520px);
   padding: 9px 13px;
   border-radius: 18px;
   background: var(--theirs);
@@ -205,7 +216,7 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .chat form {
   display: flex;
   gap: 8px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding-block: 12px calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
