@@ -92,19 +92,19 @@ for (const [name, face] of Object.entries(FACES)) {
   await page.setContent(`<body style="margin:0">${svg(face)}</body>`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(110);
   const buf = await page.screenshot({ omitBackground: true, type: 'png' });
-  fs.writeFileSync(`capybara-pack/${name}.png`, buf);
+  fs.writeFileSync(`packs/capybara/${name}.png`, buf);
   zip.file(`${name}.png`, buf);
   manifest.emoji.push({ name, file: `${name}.png` });
 }
 
 zip.file('pack.json', JSON.stringify(manifest, null, 2));
-fs.writeFileSync('capybara-pack/pack.json', JSON.stringify(manifest, null, 2));
+fs.writeFileSync('packs/capybara/pack.json', JSON.stringify(manifest, null, 2));
 fs.writeFileSync('public/capybaras.zip', await zip.generateAsync({ type: 'nodebuffer' }));
 
 // Contact sheet on light and dark, because stickers get used on both.
 const names = Object.keys(FACES);
 const tile = (n, fg) => `<div style="text-align:center;color:${fg};font:11px system-ui">
-  <img src="data:image/png;base64,${fs.readFileSync(`capybara-pack/${n}.png`).toString('base64')}" width="62"><div>${n}</div></div>`;
+  <img src="data:image/png;base64,${fs.readFileSync(`packs/capybara/${n}.png`).toString('base64')}" width="62"><div>${n}</div></div>`;
 const page = await (await browser.newContext({ viewport: { width: 680, height: 220 } })).newPage();
 await page.setContent(`<body style="margin:0;font:11px system-ui">
   <div style="background:#171a21;display:flex;gap:4px;padding:10px">${names.map(n => tile(n, '#8b93a3')).join('')}</div>

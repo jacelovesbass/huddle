@@ -80,7 +80,7 @@ await a.locator('.sheet').click({ position: { x: 8, y: 8 } });
 await a.waitForTimeout(300);
 await a.locator('.tool.gif').click();
 await a.waitForSelector('.sheet-card');
-await a.locator('.sheet-card input[type=file]').setInputFiles('capybara-pack/happy.png');
+await a.locator('.sheet-card input[type=file]').setInputFiles('packs/capybara/happy.png');
 await a.waitForTimeout(3500);
 const draft2 = await a.getByPlaceholder('Message').inputValue();
 console.log(/:happy/.test(draft2) ? `PASS: photo pick inserted ${draft2.trim()}`

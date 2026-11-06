@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import path from 'node:path';
 
 const URL = process.env.TEST_URL || 'http://localhost:5173';
-const ZIP = path.resolve('starter-faces.zip');
+const ZIP = path.resolve('public/starter-faces.zip');
 const browser = await chromium.launch();
 const joinCode = async page => {
   await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });

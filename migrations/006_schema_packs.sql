@@ -32,5 +32,19 @@ create policy packs_all on packs for all to anon using (true) with check (true);
 drop policy if exists emoji_all on emoji;
 create policy emoji_all on emoji for all to anon using (true) with check (true);
 
-alter publication supabase_realtime add table packs;
-alter publication supabase_realtime add table emoji;
+-- Idempotent: adding a table to a publication twice is an error, and a
+-- migration must be safe to re-run.
+do $$ begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and tablename = 'packs') then
+    alter publication supabase_realtime add table packs;
+  end if;
+end $$;
+-- Idempotent: adding a table to a publication twice is an error, and a
+-- migration must be safe to re-run.
+do $$ begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and tablename = 'emoji') then
+    alter publication supabase_realtime add table emoji;
+  end if;
+end $$;

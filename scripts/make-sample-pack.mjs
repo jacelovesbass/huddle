@@ -35,15 +35,14 @@ for (const [name, colour, mouth, mode] of FACES) {
     { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(120);
   const buf = await page.screenshot({ omitBackground: true, type: 'png' });
-  const file = `${name}.webp`;
   // Keep it simple: store the PNG bytes under a .webp-free name the importer re-encodes anyway.
-  fs.writeFileSync(`sample-pack/${name}.png`, buf);
+  fs.writeFileSync(`packs/sample/${name}.png`, buf);
   zip.file(`${name}.png`, buf);
   manifest.emoji.push({ name, file: `${name}.png` });
 }
 
 zip.file('pack.json', JSON.stringify(manifest, null, 2));
-fs.writeFileSync('sample-pack/pack.json', JSON.stringify(manifest, null, 2));
+fs.writeFileSync('packs/sample/pack.json', JSON.stringify(manifest, null, 2));
 fs.writeFileSync('starter-faces.zip', await zip.generateAsync({ type: 'nodebuffer' }));
 await browser.close();
 console.log('starter-faces.zip:', (fs.statSync('starter-faces.zip').size / 1024).toFixed(1), 'KB,', FACES.length, 'emoji');

@@ -20,22 +20,22 @@ await page.waitForSelector('.gate, .chat');
 await page.getByPlaceholder('Your name').fill('Jason');
 await page.getByRole('button', { name: 'Continue' }).click();
 
-await page.getByPlaceholder('Group name').fill('Pure');
+await page.getByPlaceholder('Group name').fill('Rejoin Test');
 await page.getByRole('button', { name: 'Create group' }).click();
 const code = await joinCode(page);
-console.log('created Pure:', code);
+console.log('created Rejoin Test:', code);
 
 await page.locator('.back').click();
 await page.waitForSelector('.gate');
 
-const row = page.locator('.recent-row', { hasText: 'Pure' });
+const row = page.locator('.recent-row', { hasText: 'Rejoin Test' });
 if (!(await row.count())) {
   console.log('FAIL: group gone from the gate after leaving');
   await page.screenshot({ path: 'rejoin-fail.png' });
   await browser.close();
   process.exit(1);
 }
-console.log('PASS: Pure still listed, code shown:', (await row.locator('.code').innerText()).trim());
+console.log('PASS: group still listed, code shown:', (await row.locator('.code').innerText()).trim());
 
 await row.click();
 await page.waitForSelector('.chat header', { timeout: 8000 });
@@ -46,7 +46,7 @@ await page.locator('.back').click();
 await page.waitForSelector('.gate');
 await page.reload();
 await page.waitForSelector('.gate');
-if (await page.locator('.recent-row', { hasText: 'Pure' }).count()) {
+if (await page.locator('.recent-row', { hasText: 'Rejoin Test' }).count()) {
   console.log('PASS: survives reload');
 } else {
   console.log('FAIL: lost after reload');

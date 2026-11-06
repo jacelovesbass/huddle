@@ -18,4 +18,11 @@ drop policy if exists members_all on members;
 create policy members_all on members
   for all to anon using (true) with check (true);
 
-alter publication supabase_realtime add table members;
+-- Idempotent: adding a table to a publication twice is an error, and a
+-- migration must be safe to re-run.
+do $$ begin
+  if not exists (select 1 from pg_publication_tables
+                 where pubname = 'supabase_realtime' and tablename = 'members') then
+    alter publication supabase_realtime add table members;
+  end if;
+end $$;

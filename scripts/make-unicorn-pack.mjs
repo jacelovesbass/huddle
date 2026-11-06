@@ -118,18 +118,18 @@ for (const [name, face] of Object.entries(FACES)) {
   await page.setContent(`<body style="margin:0">${svg(face)}</body>`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(110);
   const buf = await page.screenshot({ omitBackground: true, type: 'png' });
-  fs.writeFileSync(`unicorn-pack/${name}.png`, buf);
+  fs.writeFileSync(`packs/unicorn/${name}.png`, buf);
   zip.file(`${name}.png`, buf);
   manifest.emoji.push({ name, file: `${name}.png` });
 }
 
 zip.file('pack.json', JSON.stringify(manifest, null, 2));
-fs.writeFileSync('unicorn-pack/pack.json', JSON.stringify(manifest, null, 2));
+fs.writeFileSync('packs/unicorn/pack.json', JSON.stringify(manifest, null, 2));
 fs.writeFileSync('public/capybara-unicorns.zip', await zip.generateAsync({ type: 'nodebuffer' }));
 
 const names = Object.keys(FACES);
 const tile = (n, fg, w) => `<div style="text-align:center;color:${fg};font:11px system-ui">
-  <img src="data:image/png;base64,${fs.readFileSync(`unicorn-pack/${n}.png`).toString('base64')}" width="${w}"><div>${n}</div></div>`;
+  <img src="data:image/png;base64,${fs.readFileSync(`packs/unicorn/${n}.png`).toString('base64')}" width="${w}"><div>${n}</div></div>`;
 const page = await (await browser.newContext({ viewport: { width: 700, height: 350 } })).newPage();
 await page.setContent(`<body style="margin:0;font:11px system-ui">
   <div style="background:#171a21;display:flex;gap:4px;padding:10px">${names.map(n => tile(n, '#8b93a3', 64)).join('')}</div>

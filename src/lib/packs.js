@@ -208,7 +208,7 @@ export async function exportPack(pack, entries) {
   for (const e of entries) {
     if (e.url.startsWith('data:')) {
       // A stored picture has to travel as a file.
-      const ext = (e.url.match(/^data:image\/([a-z]+)/) || [, 'png'])[1];
+      const ext = (e.url.match(/^data:image\/([a-z]+)/) ?? ['', 'png'])[1];
       const bytes = Uint8Array.from(atob(e.url.split(',')[1]), c => c.charCodeAt(0));
       const file = `${e.name}.${ext === 'jpeg' ? 'jpg' : ext}`;
       zip.file(file, bytes);
