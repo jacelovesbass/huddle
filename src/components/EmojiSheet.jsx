@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { readZip, readLooseImages, dedupeNames, exportPack } from '../lib/packs.js';
 
-export function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
+export function EmojiSheet({ room, name, packs, emoji, onSendEmoji, onClose }) {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const zipRef = useRef(null);
@@ -79,7 +79,7 @@ export function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
               </div>
               <div className="grid">
                 {mine.map(e => (
-                  <button key={e.id} className="cell" title={':' + e.name + ':'} onClick={() => onPick(e)}>
+                  <button key={e.id} className="cell" title={':' + e.name + ':'} onClick={() => onSendEmoji(e)}>
                     <img src={e.url} alt={e.name} />
                   </button>
                 ))}

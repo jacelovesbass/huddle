@@ -1,8 +1,7 @@
 // The header refresh must actually bust the cache, not just reload.
-import { chromium } from 'playwright';
-const URL = process.env.TEST_URL || 'http://localhost:5173';
-const b = await chromium.launch();
-const p = await (await b.newContext({ viewport:{width:390,height:760} })).newPage();
+import { launch, BASE as URL } from './helpers.mjs';
+const browser = await launch();
+const p = await (await browser.newContext({ viewport:{width:390,height:760} })).newPage();
 p.on('pageerror', e => console.log('ERROR', String(e)));
 await p.goto(URL);
 await p.waitForSelector('.gate, .chat');
@@ -23,4 +22,4 @@ const after = (await p.locator('header strong').innerText()).trim();
 console.log(after === before ? `PASS: still in the same group (${after})`
                              : `FAIL: landed in "${after}", was "${before}"`);
 await p.screenshot({ path:'refresh.png' });
-await b.close();
+await browser.close();

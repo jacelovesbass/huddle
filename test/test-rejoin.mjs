@@ -1,17 +1,7 @@
 // Leaving a group must not lose it. The regression Jason hit on 2026-11-05.
-import { chromium } from 'playwright';
+import { launch, joinCode, BASE as URL } from './helpers.mjs';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
-const browser = await chromium.launch();
-const joinCode = async page => {
-  await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });
-  await page.getByRole('button', { name: /^People/ }).click();
-  await page.waitForSelector('.sheet-card .code');
-  const c = (await page.locator('.sheet-card .code').innerText()).trim();
-  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
-  await page.waitForTimeout(250);
-  return c;
-};
+const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 390, height: 760 } })).newPage();
 page.on('pageerror', e => console.log('ERROR', String(e)));
 

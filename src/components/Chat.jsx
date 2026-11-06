@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabase.js';
 import { encodeShortcodes } from '../lib/packs.js';
 import { Halo } from './Halo.jsx';
 import { Body } from './Body.jsx';
-import { EmojiSheet } from './EmojiSheet.jsx';
-import { MediaSheet } from './MediaSheet.jsx';
+import { TOOLS } from '../tools/index.js';
 
 export function Chat({ name, room, onBack, onForget }) {
   const [msgs, setMsgs] = useState([]);
@@ -15,8 +14,8 @@ export function Chat({ name, room, onBack, onForget }) {
   const [showPeople, setShowPeople] = useState(false);
   const [packs, setPacks] = useState([]);
   const [emoji, setEmoji] = useState([]);
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [showMedia, setShowMedia] = useState(false);
+  // Which tool's sheet is open, by id. Chat does not know what any of them do.
+  const [openTool, setOpenTool] = useState(null);
   const [sendErr, setSendErr] = useState('');
   const end = useRef(null);
 
@@ -96,10 +95,11 @@ export function Chat({ name, room, onBack, onForget }) {
         loadPacks)
       // Also watch emoji rows: adding one to a pack that already exists fires
       // no packs event, so a GIF kept into Saved GIFs reached nobody else.
-      // Unfiltered because emoji rows carry a pack, not a room; loadPacks
-      // still only reads this room.
+      // Filtered by room_id, which a trigger keeps in step with the pack. This
+      // was unfiltered once, which woke every client in every room on any
+      // emoji change anywhere.
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'emoji' },
+        { event: '*', schema: 'public', table: 'emoji', filter: `room_id=eq.${room.id}` },
         loadPacks)
       .on('presence', { event: 'sync' },
         () => setOnline(Object.keys(ch.presenceState())))
@@ -113,6 +113,13 @@ export function Chat({ name, room, onBack, onForget }) {
 
     return () => { live = false; supabase.removeChannel(ch); };
   }, [room.id, name]);
+
+  /** Send a message a tool built, rather than something typed. */
+  async function sendStructured({ kind = 'text', payload = null, body = '' }) {
+    const { error } = await supabase.from('messages')
+      .insert({ room_id: room.id, author: name, body, kind, payload });
+    if (error) setSendErr(error.message);
+  }
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs.length]);
 
@@ -177,7 +184,7 @@ export function Chat({ name, room, onBack, onForget }) {
             <div key={m.id} className={'row ' + (mine ? 'mine' : 'theirs')}>
               <div className="bubble">
                 {!mine && !runOn && <div className="who">{m.author}</div>}
-                <Body body={m.body} byId={byId} />
+                <Body message={m} body={m.body} byId={byId} />
               </div>
             </div>
           );
@@ -185,40 +192,32 @@ export function Chat({ name, room, onBack, onForget }) {
         <div ref={end} />
       </main>
 
-      {showEmoji && (
-        <EmojiSheet
-          room={room} name={name} packs={packs} emoji={emoji}
-          onPick={e => {
-            picked.current.set(e.name, e);
-            setDraft(d => d + `:${e.name}:`);
-            setShowEmoji(false);
-          }}
-          onClose={() => setShowEmoji(false)}
-        />
-      )}
-
-      {showMedia && (
-        <MediaSheet
+      {TOOLS.filter(t => t.id === openTool).map(({ id, Sheet }) => (
+        <Sheet
+          key={id}
           room={room} name={name} packs={packs} emoji={emoji} msgs={msgs}
-          onSend={url => { setDraft(d => (d ? d + ' ' : '') + url); setShowMedia(false); }}
+          onSendText={text => { setDraft(d => (d ? d + ' ' : '') + text); setOpenTool(null); }}
           onSendEmoji={e => {
+            // By identity, not by name: two packs may share a shortcode.
             picked.current.set(e.name, e);
             setDraft(d => (d ? d + ' ' : '') + `:${e.name}:`);
-            setShowMedia(false);
+            setOpenTool(null);
           }}
-          onClose={() => setShowMedia(false)}
+          onSend={msg => { sendStructured(msg); setOpenTool(null); }}
+          onClose={() => setOpenTool(null)}
         />
-      )}
+      ))}
 
       <div className="composer">
         {sendErr && <p className="err send-err">Not sent: {sendErr}</p>}
-        {/* The tool bar. One button today; this is where gifs, music and
-            anything else people bring will hang off. */}
+        {/* The tool bar, built from the registry. Adding a tool is a file
+            and a line in src/tools/index.js; nothing here changes. */}
         <div className="tools">
-          <button type="button" className="tool emoji-tool" title="Emoji"
-                  onClick={() => setShowEmoji(true)}>☺</button>
-          <button type="button" className="tool gif" title="Paste a GIF or picture link"
-                  onClick={() => setShowMedia(true)}>GIF</button>
+          {TOOLS.map(t => (
+            <button key={t.id} type="button" className={`tool tool-${t.id}`}
+                    title={t.label} aria-label={t.label}
+                    onClick={() => setOpenTool(t.id)}>{t.icon}</button>
+          ))}
         </div>
         <form onSubmit={send}>
           <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Message" />

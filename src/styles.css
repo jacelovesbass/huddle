@@ -313,7 +313,7 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .pack-actions { display: flex; gap: 8px; margin-top: 16px; }
 .pack-actions button { flex: 1; }
 
-.tool.gif { width: auto; padding: 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+.tool.tool-gif { width: auto; padding: 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
 
 /* A pasted GIF is a picture in the message, not an emoji, so it gets room. */
 .media { display: block; max-width: 100%; width: 220px; border-radius: 12px; margin: 2px 0; }
@@ -387,3 +387,10 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 }
 
 .about:hover { color: var(--text); }
+
+/* Dice, the sample tool. */
+.dice-picker { display: flex; gap: 8px; margin-bottom: 4px; }
+.dice-picker button { flex: 1; }
+.dice-picker button.on { border-color: var(--mine); color: var(--text); }
+.dice-result { display: inline-flex; align-items: baseline; gap: 6px; }
+.dice-result .pip { font-size: 1.9em; line-height: 1; }

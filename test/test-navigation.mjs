@@ -1,8 +1,7 @@
 // Getting out of a chat without losing it, and starting another one.
-import { chromium } from 'playwright';
+import { launch, BASE as URL } from './helpers.mjs';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
-const browser = await chromium.launch();
+const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 390, height: 820 } })).newPage();
 page.on('pageerror', e => console.log('ERROR', String(e)));
 

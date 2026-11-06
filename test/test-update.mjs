@@ -1,8 +1,10 @@
 // A stale copy must notice and offer to update.
-import { chromium } from 'playwright';
+import { launch } from './helpers.mjs';
 
+// Deliberately the deployed site: this is about a stale cached copy, which
+// only means anything against the real thing.
 const URL = 'https://jacelovesbass.github.io/purechat/';
-const browser = await chromium.launch();
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 760 } });
 
 // Pretend the server has moved on to a build this copy has never seen.

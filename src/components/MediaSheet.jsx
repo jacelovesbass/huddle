@@ -7,7 +7,7 @@ import { toMediaUrl, splitBody, normalise, GIF_MAX_BYTES, tagsFromUrl } from '..
  * library. Nothing is uploaded: a kept GIF is a pack entry whose url points at
  * wherever the picture already lives.
  */
-export function MediaSheet({ room, name, packs, emoji, msgs, onSend, onSendEmoji, onClose }) {
+export function MediaSheet({ room, name, packs, emoji, msgs, onSendText, onSendEmoji, onClose }) {
   const [raw, setRaw] = useState('');
   const [tags, setTags] = useState('');
   const [q, setQ] = useState('');
@@ -75,7 +75,7 @@ export function MediaSheet({ room, name, packs, emoji, msgs, onSend, onSendEmoji
       const { error } = await supabase.from('emoji')
         .insert({ pack_id: await shelfId(), name: freeName(clean), url, tags: (tags || autoTags).trim() });
       if (error) throw error;
-      onSend(url);
+      onSendText(url);
     } catch (ex) {
       setErr(ex.message || String(ex));
       setBusy(false);
@@ -123,7 +123,7 @@ export function MediaSheet({ room, name, packs, emoji, msgs, onSend, onSendEmoji
               {shown.map(g => (
                 <button key={g.key} className={'gif-cell' + (g.kept ? ' kept' : '')}
                         title={g.kept ? `:${g.name}:${g.tags ? ' - ' + g.tags : ''}` : 'Sent earlier'}
-                        onClick={() => (g.kept ? onSendEmoji(g.emoji) : onSend(g.url))}>
+                        onClick={() => (g.kept ? onSendEmoji(g.emoji) : onSendText(g.url))}>
                   <img src={g.url} alt={g.name} loading="lazy" />
                 </button>
               ))}
@@ -151,7 +151,7 @@ export function MediaSheet({ room, name, packs, emoji, msgs, onSend, onSendEmoji
           <>
             <div className="preview"><img src={url} alt="" /></div>
             <div className="pack-actions">
-              <button onClick={() => onSend(url)}>Send</button>
+              <button onClick={() => onSendText(url)}>Send</button>
             </div>
             <div className="keep">
               <input value={keepName} onChange={e => setKeepName(e.target.value)}

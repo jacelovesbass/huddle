@@ -1,41 +1,19 @@
 // Import a pack, send an emoji, and prove a second person who never installed
 // the pack still sees the picture rather than ":yep:".
-import { chromium } from 'playwright';
+import { launch, open, joinCode, BASE as URL } from './helpers.mjs';
 import path from 'node:path';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
 const ZIP = path.resolve('public/starter-faces.zip');
-const browser = await chromium.launch();
-const joinCode = async page => {
-  await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });
-  await page.getByRole('button', { name: /^People/ }).click();
-  await page.waitForSelector('.sheet-card .code');
-  const c = (await page.locator('.sheet-card .code').innerText()).trim();
-  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
-  await page.waitForTimeout(250);
-  return c;
-};
+const browser = await launch();
 
-const open = async (name, url = URL) => {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
-  page.on('pageerror', e => console.log(`[${name}] ERROR ${e}`));
-  page.on('console', m => m.type() === 'error' && console.log(`[${name}] console ${m.text()}`));
-  await page.goto(url);
-  await page.waitForSelector('.gate, .chat');
-  if (await page.getByPlaceholder('Your name').isVisible().catch(() => false)) {
-    await page.getByPlaceholder('Your name').fill(name);
-    await page.getByRole('button', { name: 'Continue' }).click();
-  }
-  return page;
-};
 
-const a = await open('Jason');
+const a = await open(browser, 'Jason');
 await a.getByPlaceholder('Group name').fill('Pack Test');
 await a.getByRole('button', { name: 'Create group' }).click();
 const code = await joinCode(a);
 
 // Install the pack.
-await a.locator('.tool.emoji-tool').click();
+await a.locator('.tool.tool-emoji').click();
 await a.waitForSelector('.sheet-card');
 await a.locator('input[type=file][accept=".zip"]').setInputFiles(ZIP);
 try {
@@ -55,7 +33,7 @@ const draft = await a.getByPlaceholder('Message').inputValue();
 console.log(/^:[a-z-]+:$/.test(draft) ? `PASS: picker inserted ${draft}` : `FAIL: draft is "${draft}"`);
 
 // Second person joins and never opens the pack sheet.
-const b = await open('Foxy', `${URL}#${code}`);
+const b = await open(browser, 'Foxy', `${URL}#${code}`);
 await b.waitForSelector('.chat header');
 
 await a.getByRole('button', { name: 'Send' }).click();
@@ -80,7 +58,7 @@ const inline = await b.locator('.bubble', { hasText: 'nice one' }).locator('img.
 console.log(inline === 1 ? 'PASS: inline emoji inside text' : `FAIL: ${inline} inline emoji`);
 
 await a.waitForTimeout(600);
-await a.locator('.tool.emoji-tool').click();
+await a.locator('.tool.tool-emoji').click();
 await a.waitForSelector('.sheet-card');
 await a.screenshot({ path: 'packs-sheet.png' });
 await a.keyboard.press('Escape');

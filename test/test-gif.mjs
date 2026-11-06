@@ -1,43 +1,22 @@
 // Paste a picture link: it renders as a picture for everyone, and can be kept
 // in the group's library as a pack entry that points at the original.
-import { chromium } from 'playwright';
+import { launch, open, joinCode, BASE as URL } from './helpers.mjs';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
 // A real https image. Must be https even when testing against localhost: the
 // app refuses http on purpose, because an https page cannot load it anyway.
 const GIF = 'https://jacelovesbass.github.io/purechat/icon-192.png';
 
-const browser = await chromium.launch();
-const joinCode = async page => {
-  await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });
-  await page.getByRole('button', { name: /^People/ }).click();
-  await page.waitForSelector('.sheet-card .code');
-  const c = (await page.locator('.sheet-card .code').innerText()).trim();
-  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
-  await page.waitForTimeout(250);
-  return c;
-};
-const open = async (who, url = URL) => {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 820 } })).newPage();
-  page.on('pageerror', e => console.log(`[${who}] ERROR ${e}`));
-  await page.goto(url);
-  await page.waitForSelector('.gate, .chat');
-  if (await page.getByPlaceholder('Your name').isVisible().catch(() => false)) {
-    await page.getByPlaceholder('Your name').fill(who);
-    await page.getByRole('button', { name: 'Continue' }).click();
-  }
-  return page;
-};
+const browser = await launch();
 
-const a = await open('Jason');
+const a = await open(browser, 'Jason');
 await a.getByPlaceholder('Group name').fill('Gif Test');
 await a.getByRole('button', { name: 'Create group' }).click();
 const code = await joinCode(a);
-const b = await open('Foxy', `${URL}#${code}`);
+const b = await open(browser, 'Foxy', `${URL}#${code}`);
 await b.waitForSelector('.chat header');
 
 // Reject a link that is not a picture.
-await a.locator('.tool.gif').click();
+await a.locator('.tool.tool-gif').click();
 await a.waitForSelector('.sheet-card');
 await a.getByPlaceholder('https://...').fill('https://example.com/not-a-picture');
 await a.waitForTimeout(300);
@@ -62,7 +41,7 @@ try {
 }
 
 // Keep it in the library.
-await a.locator('.tool.gif').click();
+await a.locator('.tool.tool-gif').click();
 await a.waitForSelector('.sheet-card');
 await a.getByPlaceholder('https://...').fill(GIF);
 await a.waitForSelector('.preview img');
@@ -70,7 +49,7 @@ await a.getByPlaceholder('Keep it as :name:').fill('halo');
 await a.getByRole('button', { name: 'Keep', exact: true }).click();
 await a.waitForTimeout(2500);
 
-await a.locator('.tool.emoji-tool').click();
+await a.locator('.tool.tool-emoji').click();
 await a.waitForSelector('.sheet-card');
 const kept = await a.locator('.cell[title=":halo:"]').count();
 console.log(kept === 1 ? 'PASS: kept into the group library' : 'FAIL: not in the library');
@@ -78,7 +57,7 @@ await a.screenshot({ path: 'gif-library.png' });
 // The path that actually works on a phone: pick the GIF out of Photos.
 await a.locator('.sheet').click({ position: { x: 8, y: 8 } });
 await a.waitForTimeout(300);
-await a.locator('.tool.gif').click();
+await a.locator('.tool.tool-gif').click();
 await a.waitForSelector('.sheet-card');
 await a.locator('.sheet-card input[type=file]').setInputFiles('packs/capybara/happy.png');
 await a.waitForTimeout(3500);

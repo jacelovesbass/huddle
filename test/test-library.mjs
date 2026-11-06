@@ -1,15 +1,14 @@
 // Keep GIFs with tags, find them again by tag, and export the pack so it can
 // travel to another group.
-import { chromium } from 'playwright';
+import { launch, closeSheet, BASE as URL } from './helpers.mjs';
 import fs from 'node:fs';
 import JSZip from 'jszip';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
 const A = 'https://jacelovesbass.github.io/purechat/icon-192.png';
 // A GIPHY page link, whose slug carries the words that become tags.
 const B = 'https://giphy.com/gifs/homer-simpson-backs-into-bushes-jUwpNzg9IcyrK';
 
-const browser = await chromium.launch();
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 860 }, acceptDownloads: true });
 const page = await ctx.newPage();
 page.on('pageerror', e => console.log('ERROR', String(e)));
@@ -23,15 +22,9 @@ await page.getByRole('button', { name: 'Create group' }).click();
 await page.waitForSelector('.chat header');
 
 // Some actions close the sheet themselves, some do not. Close only if open.
-const closeSheet = async () => {
-  if (await page.locator('.sheet').count()) {
-    await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
-    await page.waitForTimeout(300);
-  }
-};
 
 async function keep(url, name, tags) {
-  await page.locator('.tool.gif').click();
+  await page.locator('.tool.tool-gif').click();
   await page.waitForSelector('.sheet-card');
   await page.getByPlaceholder('https://...').fill(url);
   await page.waitForSelector('.preview img', { timeout: 10000 });
@@ -44,7 +37,7 @@ async function keep(url, name, tags) {
 await keep(A, 'halo', 'logo brand');
 await keep(B, 'homer', '');
 
-await page.locator('.tool.gif').click();
+await page.locator('.tool.tool-gif').click();
 await page.waitForSelector('.sheet-card');
 const tiles = await page.locator('.gif-cell').count();
 console.log(tiles === 2 ? 'PASS: both GIFs in the library' : `FAIL: ${tiles} in the library`);
@@ -63,9 +56,9 @@ await page.locator('.search').fill('');
 
 // Send one straight from the library. Clear the box first: Keep also queues
 // the GIF into the draft, so it is not empty at this point.
-await closeSheet();
+await closeSheet(page);
 await page.getByPlaceholder('Message').fill('');
-await page.locator('.tool.gif').click();
+await page.locator('.tool.tool-gif').click();
 await page.waitForSelector('.sheet-card');
 // The GIFs are still loading and reflow the sheet as they arrive, which moves
 // the tile out from under the click. Wait for them to settle.
@@ -79,8 +72,8 @@ console.log(/^:[a-z0-9-]+:$/.test(draft.trim()) ? `PASS: library pick inserted $
                                                 : `FAIL: draft "${draft}"`);
 
 // Export the pack and read it back.
-await closeSheet();
-await page.locator('.tool.emoji-tool').click();
+await closeSheet(page);
+await page.locator('.tool.tool-emoji').click();
 await page.waitForSelector('.sheet-card');
 const [dl] = await Promise.all([
   page.waitForEvent('download'),

@@ -11,7 +11,7 @@ import { connect } from './db.mjs';
 
 const SUITES = [
   'rejoin', 'people', 'packs', 'collision', 'gif',
-  'library', 'history-gifs', 'navigation', 'refresh', 'update',
+  'library', 'history-gifs', 'navigation', 'refresh', 'update', 'isolation', 'tools',
 ];
 
 // Never put a name here that a real group might plausibly use. 'Pure' was in

@@ -1,10 +1,9 @@
 // Two packs sharing an emoji name must not make a shortcode ambiguous.
 // Regression for the defect Foxy hit: picked one capybara, sent a different one.
-import { chromium } from 'playwright';
+import { launch, BASE as URL } from './helpers.mjs';
 import path from 'node:path';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
-const browser = await chromium.launch();
+const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 390, height: 820 } })).newPage();
 page.on('pageerror', e => console.log('ERROR', String(e)));
 
@@ -18,7 +17,7 @@ await page.waitForSelector('.chat header');
 
 // Both sample packs contain :shocked:.
 for (const zip of ['starter-faces.zip', 'capybaras.zip']) {
-  await page.locator('.tool.emoji-tool').click();
+  await page.locator('.tool.tool-emoji').click();
   await page.waitForSelector('.sheet-card');
   await page.locator('input[type=file][accept=".zip"]').setInputFiles(path.resolve('public', zip));
   await page.waitForFunction(
@@ -29,7 +28,7 @@ for (const zip of ['starter-faces.zip', 'capybaras.zip']) {
   await page.waitForTimeout(300);
 }
 
-await page.locator('.tool.emoji-tool').click();
+await page.locator('.tool.tool-emoji').click();
 await page.waitForSelector('.sheet-card');
 
 const titles = await page.locator('.cell').evaluateAll(els => els.map(e => e.getAttribute('title')));
@@ -49,7 +48,7 @@ async function pickAndSend(title) {
   const got = await page.locator('.bubble img.emoji').last().getAttribute('src');
   console.log(want === got ? `PASS: ${title} sent the picture that was clicked`
                            : `FAIL: ${title} sent a different picture`);
-  await page.locator('.tool.emoji-tool').click();
+  await page.locator('.tool.tool-emoji').click();
   await page.waitForSelector('.sheet-card');
 }
 

@@ -1,37 +1,17 @@
 // The People button: roster of everyone who joined, live dot for who is online.
-import { chromium } from 'playwright';
+import { launch, open, joinCode, BASE as URL } from './helpers.mjs';
 
-const URL = process.env.TEST_URL || 'http://localhost:5173';
-const browser = await chromium.launch();
-const joinCode = async page => {
-  await page.getByRole('button', { name: /^People/ }).click();
-  await page.waitForSelector('.sheet-card .code');
-  const c = (await page.locator('.sheet-card .code').innerText()).trim();
-  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
-  await page.waitForTimeout(250);
-  return c;
-};
+const browser = await launch();
 
 
-const open = async (name, url = URL) => {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 760 } })).newPage();
-  page.on('pageerror', e => console.log(`[${name}] ERROR ${e}`));
-  await page.goto(url);
-  await page.waitForSelector('.gate, .chat');
-  if (await page.getByPlaceholder('Your name').isVisible().catch(() => false)) {
-    await page.getByPlaceholder('Your name').fill(name);
-    await page.getByRole('button', { name: 'Continue' }).click();
-  }
-  return page;
-};
 
-const a = await open('Jason');
+const a = await open(browser, 'Jason');
 await a.getByPlaceholder('Group name').fill('People Test');
 await a.getByRole('button', { name: 'Create group' }).click();
 const code = await joinCode(a);
 
 // Sam joins but says nothing. The old version could not see him at all.
-const b = await open('Sam', `${URL}#${code}`);
+const b = await open(browser, 'Sam', `${URL}#${code}`);
 await b.waitForSelector('.chat header');
 await a.waitForTimeout(1500);
 

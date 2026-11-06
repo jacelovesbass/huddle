@@ -1,33 +1,15 @@
 // Shared test plumbing.
 //
-// The important part is cleanup(). Every suite used to create rooms and leave
-// them, which put 125 junk rooms in a live database before anyone noticed. A
-// test that does not clean up is not finished.
+// Keep this to things every suite genuinely uses. An earlier version carried
+// a cleanup() and a launch() that no suite ever imported, which is worse than
+// duplication: dead code that looks like policy.
 import { chromium } from 'playwright';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BASE = (process.env.TEST_URL || 'http://localhost:5173').replace(/\/$/, '') + '/';
 
-const env = Object.fromEntries(
-  fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split('\n')
-    .filter(l => l.trim() && !l.startsWith('#') && l.includes('='))
-    .map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
-
-const created = new Set();
-let failures = 0;
-
-export const check = (ok, pass, fail) => {
-  console.log(ok ? `PASS: ${pass}` : `FAIL: ${fail}`);
-  if (!ok) failures++;
-  return ok;
-};
-
+/** A browser with page errors surfaced, because a silent exception looks like a hang. */
 export async function launch() {
-  const browser = await chromium.launch();
-  return browser;
+  return chromium.launch();
 }
 
 /** Open the app as someone, optionally straight into an invite link. */
@@ -42,16 +24,6 @@ export async function open(browser, who, url = BASE) {
     await page.getByRole('button', { name: 'Continue' }).click();
   }
   return page;
-}
-
-/** Create a group and remember it, so cleanup() can remove it afterwards. */
-export async function createGroup(page, name) {
-  await page.getByPlaceholder('Group name').fill(name);
-  await page.getByRole('button', { name: 'Create group' }).click();
-  await page.waitForSelector('.chat header');
-  const code = await joinCode(page);
-  created.add(code);
-  return code;
 }
 
 /** The join code lives in the People sheet, not the header. */
@@ -71,21 +43,12 @@ export async function closeSheet(page) {
   }
 }
 
-/** Delete every room this run created, then report. Call it in a finally. */
-export async function cleanup(browser) {
-  try { await browser?.close(); } catch {}
-
-  const headers = {
-    apikey: env.VITE_SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
-  };
-  let gone = 0;
-  for (const code of created) {
-    const r = await fetch(
-      `${env.VITE_SUPABASE_URL}/rest/v1/rooms?join_code=eq.${encodeURIComponent(code)}`,
-      { method: 'DELETE', headers });
-    if (r.ok) gone++;
+/** Wait for a condition rather than guessing a delay. Returns true if it held. */
+export async function until(fn, { timeout = 15000, every = 400 } = {}) {
+  const stop = Date.now() + timeout;
+  while (Date.now() < stop) {
+    if (await fn()) return true;
+    await new Promise(r => setTimeout(r, every));
   }
-  if (created.size) console.log(`cleanup: removed ${gone}/${created.size} test rooms`);
-  process.exit(failures ? 1 : 0);
+  return false;
 }
