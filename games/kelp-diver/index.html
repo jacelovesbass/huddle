@@ -1,0 +1,1233 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #071820;
+    font-family: "Avenir Next", "Segoe UI", Roboto, system-ui, sans-serif;
+    color: #EFE4CC;
+    touch-action: none;
+    user-select: none;
+  }
+  #wrap { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 10px 12px 0;
+    pointer-events: none;
+  }
+  .gauges { display: flex; align-items: flex-start; gap: 10px; }
+
+  #air {
+    flex: 1;
+    background: rgba(6,26,32,.55);
+    border: 1px solid rgba(239,228,204,.22);
+    border-radius: 3px;
+    padding: 5px 7px 6px;
+    backdrop-filter: blur(3px);
+  }
+  .airtop { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; letter-spacing: .04em; color: rgba(239,228,204,.62); }
+  .airtop b { font-size: 15px; font-weight: 600; color: #EFE4CC; font-variant-numeric: tabular-nums; }
+  #airtrack { position: relative; height: 7px; margin-top: 5px; background: rgba(0,0,0,.35); border-radius: 1px; overflow: hidden; }
+  #airfill { position: absolute; inset: 0 auto 0 0; width: 100%; background: #6FC6B0; transition: background .3s; }
+  #airfill.warn { background: #E8B24A; }
+  #airfill.crit { background: #E8543F; }
+  .reserve { position: absolute; top: 0; bottom: 0; left: 25%; width: 1px; background: rgba(239,228,204,.4); }
+
+  .readout {
+    background: rgba(6,26,32,.55);
+    border: 1px solid rgba(239,228,204,.22);
+    border-radius: 3px;
+    padding: 5px 9px 6px;
+    text-align: right;
+    min-width: 74px;
+    backdrop-filter: blur(3px);
+  }
+  .readout span { display: block; font-size: 11px; letter-spacing: .04em; color: rgba(239,228,204,.62); }
+  .readout b { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .readout small { font-size: 11px; font-weight: 400; opacity: .7; }
+  #bagbar { height: 3px; margin-top: 4px; background: rgba(0,0,0,.35); }
+  #bagfill { height: 100%; width: 0; background: #C9A227; }
+  #bagfill.full { background: #E8543F; }
+
+  #alert {
+    margin: 8px auto 0; width: max-content; max-width: 90%;
+    font-size: 12.5px; letter-spacing: .02em;
+    padding: 4px 12px; border-radius: 2px;
+    background: rgba(232,84,63,.9); color: #fff;
+    opacity: 0; transition: opacity .25s;
+  }
+  #alert.on { opacity: 1; }
+
+  /* ---- fire button ---- */
+  #fire {
+    position: absolute; right: 18px; bottom: 26px;
+    width: 82px; height: 82px; border-radius: 50%;
+    border: 2px solid rgba(239,228,204,.55);
+    background: rgba(6,26,32,.42);
+    color: #EFE4CC; font: inherit; font-size: 12.5px; letter-spacing: .06em;
+    display: grid; place-items: center;
+    backdrop-filter: blur(3px);
+  }
+  #fire:active { background: rgba(239,228,204,.28); }
+  #fire:disabled { opacity: .3; }
+
+  /* ---- fixed aim wheel ---- */
+  #aim {
+    position: absolute; left: 18px; bottom: 26px;
+    width: 104px; height: 104px; border-radius: 50%;
+    border: 2px solid rgba(239,228,204,.32);
+    background: rgba(6,26,32,.34);
+    backdrop-filter: blur(3px);
+    touch-action: none;
+  }
+  #aim.live { border-color: rgba(239,228,204,.7); background: rgba(6,26,32,.5); }
+  #aimknob {
+    position: absolute; left: 50%; top: 50%;
+    width: 34px; height: 34px; margin: -17px 0 0 -17px;
+    border-radius: 50%;
+    background: rgba(239,228,204,.34);
+    pointer-events: none;
+  }
+  #aim.live #aimknob { background: rgba(239,228,204,.62); }
+  #aimtick {
+    position: absolute; left: 50%; top: 50%;
+    width: 46px; height: 2px; margin-top: -1px;
+    transform-origin: 0 50%;
+    background: linear-gradient(90deg, rgba(239,228,204,.15), rgba(239,228,204,.75));
+    pointer-events: none;
+  }
+  #aimlabel {
+    position: absolute; left: 0; right: 0; bottom: -18px;
+    text-align: center; font-size: 10.5px; letter-spacing: .06em;
+    color: rgba(239,228,204,.4); pointer-events: none;
+  }
+
+  #swap {
+    position: absolute; right: 22px; bottom: 118px;
+    min-width: 74px; padding: 9px 12px;
+    border: 1.5px solid rgba(239,228,204,.4);
+    border-radius: 3px;
+    background: rgba(6,26,32,.42);
+    color: #EFE4CC; font: inherit; font-size: 12px; letter-spacing: .05em;
+    backdrop-filter: blur(3px);
+    text-align: center; line-height: 1.35;
+  }
+  #swap b { display: block; font-size: 13px; font-weight: 600; }
+  #swap small { font-size: 10.5px; opacity: .6; letter-spacing: .04em; }
+  #swap.armed { border-color: #E9C46A; color: #E9C46A; }
+  #swap:disabled { opacity: .32; }
+
+  /* ---- panels ---- */
+  #panel {
+    position: absolute; inset: 0;
+    display: none; place-items: center;
+    background: rgba(4,16,22,.82);
+    backdrop-filter: blur(6px);
+    padding: 22px;
+  }
+  #panel.on { display: grid; }
+  .card {
+    width: 100%; max-width: 400px;
+    background: #0E2A33;
+    border: 1px solid rgba(239,228,204,.2);
+    border-radius: 4px;
+    padding: 20px 20px 18px;
+  }
+  .card h1 { margin: 0 0 2px; font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+  .card p.sub { margin: 0 0 16px; font-size: 13.5px; line-height: 1.5; color: rgba(239,228,204,.66); }
+  .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid rgba(239,228,204,.1); }
+  .row:last-of-type { border-bottom: 0; }
+  .row .n { color: rgba(239,228,204,.6); font-variant-numeric: tabular-nums; }
+  .row .v { font-variant-numeric: tabular-nums; }
+  .total { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(239,228,204,.28); font-size: 17px; font-weight: 600; }
+  .total .v { color: #E9C46A; font-variant-numeric: tabular-nums; }
+  .empty { font-size: 13.5px; color: rgba(239,228,204,.55); padding: 10px 0 4px; line-height: 1.5; }
+  button.go {
+    margin-top: 18px; width: 100%;
+    padding: 13px; border: 0; border-radius: 3px;
+    background: #E9C46A; color: #10222A;
+    font: inherit; font-size: 15px; font-weight: 600;
+  }
+  button.go:active { background: #d4ae53; }
+  .keys { margin-top: 14px; font-size: 12px; line-height: 1.6; color: rgba(239,228,204,.45); }
+</style>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div class="gauges">
+      <div id="air">
+        <div class="airtop"><span>Air</span><b id="airtime">--</b></div>
+        <div id="airtrack"><div id="airfill"></div><div class="reserve"></div></div>
+      </div>
+      <div class="readout">
+        <span>Depth</span><b id="depth">0</b><small> m</small>
+      </div>
+      <div class="readout">
+        <span>Catch</span><b id="bag">0.0</b><small> kg</small>
+        <div id="bagbar"><div id="bagfill"></div></div>
+      </div>
+    </div>
+    <div id="alert"></div>
+  </div>
+
+  <div id="aim">
+    <div id="aimtick"></div>
+    <div id="aimknob"></div>
+    <div id="aimlabel">aim</div>
+  </div>
+
+  <button id="swap"><b>SPEAR</b><small id="ammoct">no bolts</small></button>
+  <button id="fire">SPEAR</button>
+
+  <div id="panel"><div class="card" id="card"></div></div>
+</div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- config
+const PX_PER_M   = 60;
+const WORLD_W    = 2000;
+const MAX_DEPTH_M= 40;
+const WORLD_H    = MAX_DEPTH_M * PX_PER_M + 120;
+const SEABED     = WORLD_H - 120;
+const SURFACE_Y  = 70;          // above this = boat / bank catch
+const TANK       = 260;         // air units; 1 unit = 1 s at surface pressure
+const CAPACITY   = 18;          // kg
+const VENT_SUPPLY= 130;         // air units held by each vent, half a tank
+const VENT_RATE  = 55;          // units per second while you sit in the bubbles
+const VENT_R     = 52;          // how close you must be to breathe
+const REDUCED    = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const SPECIES = [
+  { key:"scad",     name:"Yellowtail scad",   col:"#8FA9B8", back:"#4E6B7C", len:22, kg:0.4, rate:9,   speed:78, skittish:1.5, minD:0,  maxD:12, school:true },
+  { key:"trevally", name:"Silver trevally",   col:"#C7CEC9", back:"#79867F", len:32, kg:1.1, rate:14,  speed:66, skittish:1.2, minD:4,  maxD:22 },
+  { key:"squid",    name:"Southern calamari", col:"#D9A48F", back:"#A5705C", len:28, kg:0.9, rate:26,  speed:54, skittish:1.8, minD:8,  maxD:26, jet:true },
+  { key:"groper",   name:"Blue groper",       col:"#3C6FA8", back:"#254A73", len:54, kg:4.2, rate:22,  speed:34, skittish:0.6, minD:12, maxD:34 },
+  { key:"pjshark",  name:"Port Jackson",      col:"#A38A63", back:"#6F5B3E", len:60, kg:5.5, rate:12,  speed:28, skittish:0.4, minD:22, maxD:40 },
+  { key:"lobster",  name:"Rock lobster",      col:"#B3452F", back:"#7A2A1B", len:26, kg:2.0, rate:38,  speed:22, skittish:1.0, minD:24, maxD:40, benthic:true }
+];
+
+// Predators. Not catch — far too heavy for the bag. Killing one pays a bounty.
+// Hit points scale with length: smallest takes 3 spears, largest takes 5.
+const SHARKS = [
+  { key:"whaler", name:"Bronze whaler", col:"#8E7C63", back:"#5C4E3B", belly:"#D9CDB4", min:84,  max:130, minD:10, maxD:30 },
+  { key:"nurse",  name:"Grey nurse",    col:"#8C949A", back:"#5B646B", belly:"#CFD4D6", min:110, max:158, minD:16, maxD:36 },
+  { key:"white",  name:"White shark",   col:"#6E7A80", back:"#3E4A51", belly:"#E2E0D4", min:150, max:198, minD:22, maxD:40 }
+];
+const SHARK_MIN = 84, SHARK_MAX = 198;
+
+// The hand spear is always available. The speargun hits far harder and reaches
+// further, but every shot spends a bolt you had to find on the reef.
+const WEAPONS = {
+  spear: { name:"Hand spear", dmg:1, speed:620, range:330, air:1.5 },
+  gun:   { name:"Speargun",   dmg:3, speed:990, range:470, air:2.4 }
+};
+const BOLTS_PER_CRATE = 2;
+
+// water colour by depth (metres)
+const WATER = [
+  { d:0,  c:[ 92,148,126] },
+  { d:8,  c:[ 54,116,110] },
+  { d:18, c:[ 30, 82, 92] },
+  { d:28, c:[ 17, 52, 66] },
+  { d:40, c:[  8, 26, 38] }
+];
+
+// ---------------------------------------------------------------- setup
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let VW = 0, VH = 0, DPR = 1;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = cv.clientWidth; VH = cv.clientHeight;
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+
+const rnd = (a,b) => a + Math.random() * (b - a);
+const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
+const lerp = (a,b,t) => a + (b - a) * t;
+
+function waterAt(m){
+  let lo = WATER[0], hi = WATER[WATER.length-1];
+  for (let i = 0; i < WATER.length-1; i++){
+    if (m >= WATER[i].d && m <= WATER[i+1].d){ lo = WATER[i]; hi = WATER[i+1]; break; }
+  }
+  const t = hi.d === lo.d ? 0 : clamp((m - lo.d)/(hi.d - lo.d), 0, 1);
+  return [Math.round(lerp(lo.c[0],hi.c[0],t)), Math.round(lerp(lo.c[1],hi.c[1],t)), Math.round(lerp(lo.c[2],hi.c[2],t))];
+}
+
+// ---------------------------------------------------------------- world
+let kelp = [], rocks = [], motes = [], fish = [], bubbles = [], vents = [], sharks = [], crates = [];
+
+// Bolts are scattered across every depth band, so restocking mid-dive means
+// going somewhere rather than waiting somewhere.
+function buildCrates(){
+  crates = [];
+  const bands = [[3,11],[10,20],[18,28],[24,34],[30,39]];
+  for (const [lo,hi] of bands){
+    crates.push({
+      x: rnd(120, WORLD_W - 120),
+      y: rnd(lo, hi) * PX_PER_M,
+      n: BOLTS_PER_CRATE,
+      taken: false,
+      ph: rnd(0,6.3)
+    });
+  }
+}
+
+// Air vents sit at least three screen-diagonals apart, so reaching a second one
+// is a real decision rather than a free top-up.
+function buildVents(){
+  vents = [];
+  const screen = Math.hypot(VW || 400, VH || 800);
+  let minSep = screen * 3;
+  const startX = WORLD_W/2, startY = SURFACE_Y;
+  let guard = 0;
+  while (vents.length < 4 && guard < 6000){
+    guard++;
+    if (guard % 900 === 0) minSep *= 0.85;      // relax if the world is too tight to fit them
+    const x = rnd(140, WORLD_W - 140);
+    const y = rnd(11 * PX_PER_M, 37 * PX_PER_M);
+    if (Math.hypot(x - startX, y - startY) < minSep * 0.75) continue;
+    let ok = true;
+    for (const v of vents) if (Math.hypot(v.x - x, v.y - y) < minSep) { ok = false; break; }
+    if (ok) vents.push({ x, y, supply: VENT_SUPPLY, ph: rnd(0,6.3) });
+  }
+  vents.sort((a,b) => a.y - b.y);
+}
+
+function spawnSharks(){
+  sharks = [];
+  for (const sp of SHARKS){
+    const n = 1;
+    for (let i = 0; i < n; i++){
+      const len = rnd(sp.min, sp.max);
+      const t = (len - SHARK_MIN) / (SHARK_MAX - SHARK_MIN);
+      sharks.push({
+        sp, len,
+        hp: Math.round(3 + t * 2), maxhp: Math.round(3 + t * 2),
+        bounty: Math.round(len * 0.9),
+        speed: 150 - len * 0.22,
+        x: rnd(160, WORLD_W - 160),
+        y: rnd(sp.minD + 1, sp.maxD) * PX_PER_M,
+        vx: rnd(-1,1) * 30, vy: 0, dir: 1, ph: rnd(0,6.3),
+        turn: rnd(1,3), cd: rnd(2,5), hurt: 0, flee: 0
+      });
+    }
+  }
+}
+
+function buildScenery(){
+  kelp = []; rocks = []; motes = [];
+  for (let i = 0; i < 90; i++){
+    const x = rnd(0, WORLD_W);
+    const base = SEABED + rnd(-6, 4);
+    kelp.push({ x, y: base, h: rnd(180, 460), sway: rnd(0,6.3), w: rnd(4,9), tint: rnd(-14,14) });
+  }
+  for (let i = 0; i < 34; i++){
+    rocks.push({ x: rnd(0, WORLD_W), y: SEABED + rnd(-4,10), w: rnd(60,190), h: rnd(30,90) });
+  }
+  // ledges at depth
+  for (let i = 0; i < 16; i++){
+    rocks.push({ x: rnd(0, WORLD_W), y: rnd(14, 36) * PX_PER_M, w: rnd(80,220), h: rnd(20,44) });
+  }
+  const n = REDUCED ? 60 : 150;
+  for (let i = 0; i < n; i++){
+    motes.push({ x: rnd(0,WORLD_W), y: rnd(SURFACE_Y, WORLD_H), r: rnd(0.6,1.9), drift: rnd(-6,6), ph: rnd(0,6.3) });
+  }
+}
+
+function spawnFish(sp, x, y){
+  return {
+    sp, x, y,
+    vx: rnd(-1,1) * sp.speed * 0.5,
+    vy: rnd(-8,8),
+    dir: Math.random() < .5 ? -1 : 1,
+    ph: rnd(0,6.3),
+    turn: rnd(0.6, 2.4),
+    alarm: 0,
+    hooked: false
+  };
+}
+
+function stockFish(){
+  fish = [];
+  for (const sp of SPECIES){
+    const count = sp.key === "scad" ? 5 : sp.key === "lobster" ? 7 : 6;
+    for (let i = 0; i < count; i++){
+      const dm = rnd(sp.minD + 0.5, sp.maxD);
+      const y = sp.benthic ? SEABED - rnd(4,16) : dm * PX_PER_M;
+      const x = rnd(40, WORLD_W - 40);
+      if (sp.school){
+        for (let k = 0; k < 6; k++) fish.push(spawnFish(sp, x + rnd(-70,70), y + rnd(-40,40)));
+      } else {
+        fish.push(spawnFish(sp, x, y));
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------- state
+const diver = { x: WORLD_W/2, y: SURFACE_Y, vx:0, vy:0, face:1, aim:0, kick:0 };
+const spear = { state:"idle", x:0, y:0, vx:0, vy:0, cd:0, hit:null, dmg:1, range:330, gun:false };
+let air = TANK, bag = [], bagKg = 0, bank = 0, diveNo = 1, bounty = 0;
+let weapon = "spear", ammo = 0;
+let mode = "brief";           // brief | dive | report
+let blackout = false, blackoutT = 0;
+let cam = { x:0, y:0 };
+let alertT = 0;
+
+// ---------------------------------------------------------------- input
+const keys = Object.create(null);
+let stick = null;             // floating swim stick {ox,oy,dx,dy,id}
+let pointerAim = null;
+let aimStick = null;          // fixed aim wheel {dx,dy,id}
+let aimLocked = false;        // once the wheel is used, swim direction stops steering the aim
+
+const aimEl = document.getElementById("aim");
+const aimKnob = document.getElementById("aimknob");
+const aimTick = document.getElementById("aimtick");
+
+// the swim stick must never spawn under the aim wheel
+function inAimZone(clientX, clientY){
+  const r = aimEl.getBoundingClientRect(), pad = 10;
+  return clientX >= r.left - pad && clientX <= r.right + pad &&
+         clientY >= r.top - pad  && clientY <= r.bottom + pad;
+}
+
+function setAimFrom(clientX, clientY){
+  const r = aimEl.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  let dx = clientX - cx, dy = clientY - cy;
+  const d = Math.hypot(dx, dy);
+  if (d < 6) return;                        // too close to centre to read a direction
+  const max = r.width/2 - 17;
+  const k = Math.min(d, max) / d;
+  aimStick.dx = dx / d; aimStick.dy = dy / d;
+  aimLocked = true;
+  aimKnob.style.transform = `translate(${dx*k}px, ${dy*k}px)`;
+  aimTick.style.transform = `rotate(${Math.atan2(dy,dx)}rad)`;
+}
+
+aimEl.addEventListener("pointerdown", e => {
+  e.preventDefault(); e.stopPropagation();
+  aimEl.setPointerCapture(e.pointerId);
+  aimEl.classList.add("live");
+  aimStick = { dx:0, dy:0, id:e.pointerId };
+  setAimFrom(e.clientX, e.clientY);
+});
+aimEl.addEventListener("pointermove", e => {
+  if (!aimStick || aimStick.id !== e.pointerId) return;
+  e.preventDefault();
+  setAimFrom(e.clientX, e.clientY);
+});
+function endAim(e){
+  if (!aimStick || aimStick.id !== e.pointerId) return;
+  aimStick = null;                          // aim holds at its last angle
+  aimEl.classList.remove("live");
+  aimKnob.style.transform = "translate(0,0)";
+}
+aimEl.addEventListener("pointerup", endAim);
+aimEl.addEventListener("pointercancel", endAim);
+
+addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === " " || e.key === "Spacebar"){ e.preventDefault(); shoot(); }
+  if (e.key.toLowerCase() === "q" || e.key === "Tab"){ e.preventDefault(); swapWeapon(); }
+});
+addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+
+function localPt(e){
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+cv.addEventListener("pointerdown", e => {
+  if (inAimZone(e.clientX, e.clientY)) return;
+  cv.setPointerCapture(e.pointerId);
+  const p = localPt(e);
+  if (e.pointerType === "mouse"){ pointerAim = p; shoot(); return; }
+  stick = { ox:p.x, oy:p.y, dx:0, dy:0, id:e.pointerId };
+});
+cv.addEventListener("pointermove", e => {
+  const p = localPt(e);
+  if (e.pointerType === "mouse"){ pointerAim = p; return; }
+  if (stick && stick.id === e.pointerId){
+    let dx = p.x - stick.ox, dy = p.y - stick.oy;
+    const d = Math.hypot(dx,dy), max = 54;
+    if (d > max){ dx = dx/d*max; dy = dy/d*max; }
+    stick.dx = dx/max; stick.dy = dy/max;
+  }
+});
+function endPtr(e){ if (stick && stick.id === e.pointerId) stick = null; }
+cv.addEventListener("pointerup", endPtr);
+cv.addEventListener("pointercancel", endPtr);
+
+const swapBtn = document.getElementById("swap");
+swapBtn.addEventListener("pointerdown", e => { e.stopPropagation(); e.preventDefault(); swapWeapon(); });
+
+const fireBtn = document.getElementById("fire");
+fireBtn.addEventListener("pointerdown", e => { e.stopPropagation(); e.preventDefault(); shoot(); });
+
+// ---------------------------------------------------------------- dive logic
+function depthM(){ return Math.max(0, (diver.y - SURFACE_Y) / PX_PER_M); }
+function ata(){ return 1 + depthM() / 10; }
+
+function showAlert(msg){
+  const el = document.getElementById("alert");
+  el.textContent = msg; el.classList.add("on"); alertT = 2.4;
+}
+
+function swapWeapon(){
+  if (weapon === "spear"){
+    if (ammo <= 0){ showAlert("No bolts — find a crate"); return; }
+    weapon = "gun";
+  } else {
+    weapon = "spear";
+  }
+  showAlert(WEAPONS[weapon].name);
+}
+
+function shoot(){
+  if (mode !== "dive" || blackout) return;
+  if (spear.state !== "idle" || spear.cd > 0) return;
+  if (weapon === "gun" && ammo <= 0){ weapon = "spear"; showAlert("Out of bolts — back to the spear"); }
+  const w = WEAPONS[weapon];
+  if (weapon === "gun") ammo--;
+  spear.state = "out";
+  spear.dmg = w.dmg; spear.range = w.range; spear.gun = weapon === "gun";
+  spear.x = diver.x; spear.y = diver.y;
+  spear.vx = Math.cos(diver.aim) * w.speed;
+  spear.vy = Math.sin(diver.aim) * w.speed;
+  spear.hit = null;
+  air -= w.air * ata();
+}
+
+function land(f){
+  if (bagKg + f.sp.kg > CAPACITY){ showAlert("Catch bag is full"); return false; }
+  bag.push(f.sp); bagKg += f.sp.kg;
+  return true;
+}
+
+function startDive(){
+  air = TANK; bag = []; bagKg = 0; bounty = 0; blackout = false; blackoutT = 0;
+  diver.x = WORLD_W/2; diver.y = SURFACE_Y + 10; diver.vx = 0; diver.vy = 0;
+  spear.state = "idle"; spear.cd = 0;
+  weapon = "spear"; ammo = 0;
+  bubbles = [];
+  stockFish();
+  buildVents();
+  buildCrates();
+  spawnSharks();
+  mode = "dive";
+  document.getElementById("panel").classList.remove("on");
+}
+
+function endDive(lost){
+  mode = "report";
+  const tally = {};
+  for (const sp of bag){
+    if (!tally[sp.key]) tally[sp.key] = { name: sp.name, n:0, kg:0, val:0 };
+    tally[sp.key].n++; tally[sp.key].kg += sp.kg; tally[sp.key].val += sp.kg * sp.rate;
+  }
+  let gross = 0;
+  for (const k in tally) gross += tally[k].val;
+  const keepRate = lost ? 0.4 : 1;
+  const net = gross * keepRate + bounty;
+  bank += net;
+
+  let rows = "";
+  for (const k in tally){
+    const t = tally[k];
+    rows += `<div class="row"><span class="n">${t.name} &times;${t.n}</span><span class="v">${t.kg.toFixed(1)} kg &middot; $${Math.round(t.val)}</span></div>`;
+  }
+  if (!rows) rows = `<div class="empty">You came up empty. Get closer before you shoot — most fish bolt at about two body lengths.</div>`;
+  if (bounty > 0){
+    rows += `<div class="row"><span class="n">Shark bounty</span><span class="v">$${bounty}</span></div>`;
+  }
+
+  document.getElementById("card").innerHTML = `
+    <h1>${lost ? "Blacked out at depth" : `Dive ${diveNo} landed`}</h1>
+    <p class="sub">${lost
+      ? "Your buddy hauled you up. Most of the bag came loose on the way." 
+      : "Back on the boat. Here's what the catch is worth at the co-op."}</p>
+    ${rows}
+    <div class="total"><span>${lost ? "Salvaged (40%)" : "Dive total"}</span><span class="v">$${Math.round(net)}</span></div>
+    <div class="total" style="font-size:14px;font-weight:400;margin-top:4px;padding-top:8px;border-top-color:rgba(239,228,204,.12)"><span style="opacity:.6">Season earnings</span><span class="v" style="color:#EFE4CC">$${Math.round(bank)}</span></div>
+    <button class="go" id="again">Dive again</button>`;
+  document.getElementById("panel").classList.add("on");
+  document.getElementById("again").onclick = () => { diveNo++; startDive(); };
+
+  // Post the dive total to the chat. Added for Pure Chat; harmless anywhere
+  // else, because a game opened on its own has no parent listening.
+  if (window.parent !== window){
+    parent.postMessage({
+      type: "score",
+      score: Math.round(net),
+      detail: lost ? "blacked out" : `dive ${diveNo}`
+    }, "*");
+  }
+}
+
+function brief(){
+  document.getElementById("card").innerHTML = `
+    <h1>Kelp Reef</h1>
+    <p class="sub">One tank of air. Everything you spear has to come back up with you, and air burns faster the deeper you go — at 30 m you're using four times what you'd use at the surface. Four bubble vents on the reef will refill you, but they're a long swim apart and each holds only half a tank. Sharks patrol the deeper ground and will take a fish out of your bag if they reach you. The hand spear never runs out; the speargun hits three times as hard and reaches further, but only while you have bolts, and bolts are lying on the reef.</p>
+    <div class="row"><span class="n">Shallows &middot; 0&ndash;12 m</span><span class="v">scad, trevally</span></div>
+    <div class="row"><span class="n">Reef &middot; 8&ndash;26 m</span><span class="v">calamari, groper</span></div>
+    <div class="row"><span class="n">Drop-off &middot; 22&ndash;40 m</span><span class="v">Port Jackson, lobster</span></div>
+    <div class="row"><span class="n">Bag limit</span><span class="v">18 kg</span></div>
+    <div class="row"><span class="n">Air vents</span><span class="v">4, far apart</span></div>
+    <div class="row"><span class="n">Sharks</span><span class="v">3 on the reef</span></div>
+    <div class="row"><span class="n">Bolt crates</span><span class="v">5 &times; 2 bolts</span></div>
+    <button class="go" id="again">Start the dive</button>
+    <div class="keys">Drag anywhere to swim &middot; aim wheel left &middot; SPEAR to shoot &middot; GUN to swap<br>Keyboard: WASD or arrows, aim with mouse, space to shoot, Q to swap</div>`;
+  document.getElementById("panel").classList.add("on");
+  document.getElementById("again").onclick = startDive;
+}
+
+// ---------------------------------------------------------------- update
+function update(dt){
+  if (mode !== "dive") return;
+
+  // ---- intent
+  let ix = 0, iy = 0;
+  if (stick){ ix = stick.dx; iy = stick.dy; }
+  if (keys["a"] || keys["arrowleft"])  ix -= 1;
+  if (keys["d"] || keys["arrowright"]) ix += 1;
+  if (keys["w"] || keys["arrowup"])    iy -= 1;
+  if (keys["s"] || keys["arrowdown"])  iy += 1;
+  const mag = Math.hypot(ix, iy);
+  if (mag > 1){ ix /= mag; iy /= mag; }
+
+  if (blackout){ ix = 0; iy = -0.55; }
+
+  // ---- swim
+  const ACC = 520, DRAG = 2.4;
+  diver.vx += ix * ACC * dt;
+  diver.vy += iy * ACC * dt;
+  diver.vy += 26 * dt;                       // slight negative buoyancy
+  diver.vx -= diver.vx * DRAG * dt;
+  diver.vy -= diver.vy * DRAG * dt;
+  diver.x = clamp(diver.x + diver.vx * dt, 16, WORLD_W - 16);
+  diver.y = clamp(diver.y + diver.vy * dt, SURFACE_Y - 24, SEABED - 14);
+  if (Math.hypot(ix,iy) > .1) diver.kick += dt * 9;
+
+  // ---- aim
+  if (aimStick){
+    diver.aim = Math.atan2(aimStick.dy, aimStick.dx);
+  } else if (pointerAim && !stick){
+    diver.aim = Math.atan2(pointerAim.y + cam.y - diver.y, pointerAim.x + cam.x - diver.x);
+  } else if (!aimLocked && Math.hypot(ix,iy) > .15){
+    diver.aim = Math.atan2(iy, ix);
+  }
+  diver.face = Math.cos(diver.aim) < 0 ? -1 : 1;
+
+  // ---- ammo crates
+  for (const cr of crates){
+    if (cr.taken) continue;
+    cr.ph += dt;
+    if (Math.hypot(cr.x - diver.x, cr.y - diver.y) < 36){
+      cr.taken = true; ammo += cr.n;
+      showAlert(`+${cr.n} bolts (${ammo})`);
+      if (weapon === "spear" && ammo === cr.n) showAlert(`+${cr.n} bolts — tap GUN to switch`);
+    }
+  }
+
+  // ---- air vents
+  let breathing = false;
+  for (const v of vents){
+    v.ph += dt * 2;
+    if (v.supply <= 0) continue;
+    if (Math.hypot(v.x - diver.x, v.y - diver.y) < VENT_R){
+      const take = Math.min(VENT_RATE * dt, v.supply, TANK - air);
+      if (take > 0){ air += take; v.supply -= take; breathing = true; }
+      if (v.supply <= 0) showAlert("Vent is spent");
+    }
+  }
+  if (breathing && Math.random() < dt * 3) showAlert("Breathing off the vent");
+
+  // ---- air
+  if (!blackout){
+    const effort = Math.hypot(ix,iy) * 0.5;
+    air -= (1 + effort) * ata() * dt;
+    if (air <= 0){
+      air = 0; blackout = true; blackoutT = 0;
+      showAlert("Out of air");
+    } else if (air < TANK * 0.25 && Math.random() < dt * 1.4){
+      showAlert("Air low — start your ascent");
+    }
+  }
+  if (blackout){
+    blackoutT += dt;
+    if (diver.y <= SURFACE_Y + 4){ endDive(true); return; }
+  }
+
+  // bubbles
+  if (!REDUCED && Math.random() < dt * 6 && !blackout){
+    bubbles.push({ x: diver.x + diver.face*6, y: diver.y - 6, r: rnd(1.5,3.6), vy: rnd(-46,-28), vx: rnd(-6,6), life: 3 });
+  }
+  for (const b of bubbles){ b.y += b.vy*dt; b.x += b.vx*dt; b.life -= dt; }
+  bubbles = bubbles.filter(b => b.life > 0 && b.y > SURFACE_Y - 10);
+
+  // ---- surface = bank
+  if (!blackout && diver.y <= SURFACE_Y - 18){ endDive(false); return; }
+
+  // ---- spear
+  if (spear.cd > 0) spear.cd -= dt;
+  if (spear.state === "out"){
+    spear.x += spear.vx * dt; spear.y += spear.vy * dt;
+    for (const s of sharks){
+      if (Math.hypot(s.x - spear.x, s.y - spear.y) < s.len * 0.26 + 8){
+        s.hp -= spear.dmg; s.hurt = 0.45; s.flee = 1.5; s.cd = Math.max(s.cd, 1.6);
+        spear.state = "back";                        // spear comes back empty
+        if (s.hp <= 0){
+          bounty += s.bounty;
+          showAlert(`${s.sp.name} down — $${s.bounty}`);
+          sharks.splice(sharks.indexOf(s), 1);
+        } else {
+          showAlert(`${s.sp.name} hit — ${s.hp} more`);
+        }
+        break;
+      }
+    }
+  }
+  if (spear.state === "out"){
+    for (const f of fish){
+      if (f.hooked) continue;
+      const r = f.sp.len * 0.42;
+      if (Math.hypot(f.x - spear.x, f.y - spear.y) < r + 6){
+        f.hooked = true; spear.hit = f; spear.state = "back"; break;
+      }
+    }
+    if (Math.hypot(spear.x - diver.x, spear.y - diver.y) > spear.range ||
+        spear.x < 0 || spear.x > WORLD_W || spear.y > SEABED || spear.y < SURFACE_Y - 20){
+      spear.state = "back";
+    }
+    // startle nearby fish
+    for (const f of fish){
+      if (!f.hooked && Math.hypot(f.x - spear.x, f.y - spear.y) < 90) f.alarm = 1.6;
+    }
+  } else if (spear.state === "back"){
+    const dx = diver.x - spear.x, dy = diver.y - spear.y, d = Math.hypot(dx,dy) || 1;
+    const sp = spear.hit ? 300 : 780;
+    spear.x += dx/d * sp * dt; spear.y += dy/d * sp * dt;
+    if (spear.hit){ spear.hit.x = spear.x; spear.hit.y = spear.y; }
+    if (d < 14){
+      if (spear.hit){
+        if (land(spear.hit)) fish.splice(fish.indexOf(spear.hit), 1);
+        else spear.hit.hooked = false;
+      }
+      spear.hit = null; spear.state = "idle"; spear.cd = 0.35;
+    }
+  }
+
+  // ---- fish
+  for (const f of fish){
+    if (f.hooked) continue;
+    const sp = f.sp;
+    f.ph += dt * 3;
+    const dx = f.x - diver.x, dy = f.y - diver.y;
+    const dist = Math.hypot(dx, dy);
+    const flee = 60 + sp.skittish * 45;
+
+    if (dist < flee){
+      f.alarm = Math.max(f.alarm, 1.2);
+      const d = dist || 1;
+      f.vx += (dx/d) * sp.speed * sp.skittish * 2.6 * dt;
+      f.vy += (dy/d) * sp.speed * sp.skittish * 1.8 * dt;
+    }
+    if (f.alarm > 0) f.alarm -= dt;
+
+    f.turn -= dt;
+    if (f.turn <= 0){
+      f.turn = rnd(1.2, 3.4);
+      f.vx += rnd(-1,1) * sp.speed * 0.9;
+      if (!sp.benthic) f.vy += rnd(-1,1) * sp.speed * 0.35;
+    }
+
+    // stay in depth band
+    const dm = (f.y - SURFACE_Y) / PX_PER_M;
+    if (dm < sp.minD) f.vy += 30 * dt * 3;
+    if (dm > sp.maxD) f.vy -= 30 * dt * 3;
+
+    const cap = sp.speed * (f.alarm > 0 ? 2.4 : 1);
+    f.vx = clamp(f.vx, -cap, cap); f.vy = clamp(f.vy, -cap*0.7, cap*0.7);
+    f.vx -= f.vx * 0.8 * dt; f.vy -= f.vy * 0.8 * dt;
+
+    if (sp.benthic){ f.y = lerp(f.y, SEABED - 10, 3*dt); f.vy = 0; }
+
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    if (f.x < 20){ f.x = 20; f.vx = Math.abs(f.vx); }
+    if (f.x > WORLD_W - 20){ f.x = WORLD_W - 20; f.vx = -Math.abs(f.vx); }
+    f.y = clamp(f.y, SURFACE_Y + 8, SEABED - 8);
+    if (Math.abs(f.vx) > 4) f.dir = f.vx < 0 ? -1 : 1;
+  }
+
+  // ---- sharks
+  for (const s of sharks){
+    s.ph += dt * 2.2;
+    if (s.hurt > 0) s.hurt -= dt;
+    if (s.cd > 0) s.cd -= dt;
+
+    const dx = diver.x - s.x, dy = diver.y - s.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const sense = 300 + s.len;
+
+    if (s.flee > 0){
+      s.flee -= dt;
+      s.vx -= (dx/dist) * s.speed * 2.4 * dt;
+      s.vy -= (dy/dist) * s.speed * 1.6 * dt;
+    } else if (dist < sense && !blackout){
+      // close in, then lunge
+      const push = dist < 120 ? 3.4 : 1.9;
+      s.vx += (dx/dist) * s.speed * push * dt;
+      s.vy += (dy/dist) * s.speed * push * 0.8 * dt;
+      if (dist < s.len * 0.5 + 22 && s.cd <= 0){
+        s.cd = 3.2; s.flee = 0.7;
+        air -= 20 * ata() * 0.5;
+        diver.vx += (dx/dist) * 260; diver.vy += (dy/dist) * 200;
+        if (bag.length){                              // a bite shakes the bag loose
+          const drop = bag.pop();
+          bagKg = Math.max(0, bagKg - drop.kg);
+          showAlert(`Bitten — dropped the ${drop.name.toLowerCase()}`);
+        } else {
+          showAlert("Bitten — losing air");
+        }
+      }
+    } else {
+      s.turn -= dt;
+      if (s.turn <= 0){
+        s.turn = rnd(1.6, 4);
+        s.vx += rnd(-1,1) * s.speed;
+        s.vy += rnd(-1,1) * s.speed * 0.3;
+      }
+    }
+
+    const dm = (s.y - SURFACE_Y) / PX_PER_M;
+    if (dm < s.sp.minD) s.vy += 60 * dt;
+    if (dm > s.sp.maxD) s.vy -= 60 * dt;
+
+    const cap = s.speed * (s.flee > 0 ? 2.2 : 1.9);
+    s.vx = clamp(s.vx, -cap, cap); s.vy = clamp(s.vy, -cap*0.6, cap*0.6);
+    s.vx -= s.vx * 0.7 * dt; s.vy -= s.vy * 0.7 * dt;
+    s.x = clamp(s.x + s.vx * dt, 40, WORLD_W - 40);
+    s.y = clamp(s.y + s.vy * dt, SURFACE_Y + 40, SEABED - 20);
+    if (Math.abs(s.vx) > 5) s.dir = s.vx < 0 ? -1 : 1;
+
+    // fish scatter around a shark
+    for (const f of fish){
+      if (!f.hooked && Math.hypot(f.x - s.x, f.y - s.y) < 140) f.alarm = Math.max(f.alarm, 1.4);
+    }
+  }
+
+  // ---- camera
+  const tx = clamp(diver.x - VW/2, 0, Math.max(0, WORLD_W - VW));
+  const ty = clamp(diver.y - VH*0.45, -40, Math.max(0, WORLD_H - VH));
+  cam.x = lerp(cam.x, tx, 1 - Math.pow(0.001, dt));
+  cam.y = lerp(cam.y, ty, 1 - Math.pow(0.001, dt));
+
+  if (alertT > 0){
+    alertT -= dt;
+    if (alertT <= 0) document.getElementById("alert").classList.remove("on");
+  }
+}
+
+// ---------------------------------------------------------------- render
+let T = 0;
+
+function drawFish(f){
+  const sp = f.sp, L = sp.len, H = L * (sp.key === "squid" ? 0.34 : sp.key === "lobster" ? 0.46 : 0.42);
+  ctx.save();
+  ctx.translate(f.x, f.y);
+  ctx.scale(f.dir, 1);
+  const wag = Math.sin(f.ph * (f.alarm > 0 ? 2.2 : 1)) * (sp.key === "lobster" ? 0.06 : 0.22);
+
+  if (sp.key === "squid"){
+    ctx.fillStyle = sp.col;
+    ctx.beginPath();
+    ctx.moveTo(L*0.5, 0); ctx.lineTo(-L*0.1, -H); ctx.lineTo(-L*0.1, H);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = sp.back; ctx.lineWidth = 2; ctx.lineCap = "round";
+    for (let i = -2; i <= 2; i++){
+      ctx.beginPath(); ctx.moveTo(-L*0.1, i*3);
+      ctx.quadraticCurveTo(-L*0.34, i*4 + wag*14, -L*0.55, i*5 + Math.sin(f.ph + i)*3);
+      ctx.stroke();
+    }
+  } else if (sp.key === "lobster"){
+    ctx.fillStyle = sp.back;
+    ctx.beginPath(); ctx.ellipse(0, 0, L*0.42, H, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = sp.col;
+    ctx.beginPath(); ctx.ellipse(L*0.1, -1, L*0.3, H*0.8, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = sp.back; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+    for (const s of [-1,1]){
+      ctx.beginPath(); ctx.moveTo(L*0.36, s*2);
+      ctx.quadraticCurveTo(L*0.62, s*6 + wag*10, L*0.82, s*10); ctx.stroke();
+      for (let i = 0; i < 3; i++){
+        ctx.beginPath(); ctx.moveTo(-L*0.1 + i*7, s*H*0.6);
+        ctx.lineTo(-L*0.16 + i*7, s*(H*0.6 + 6)); ctx.stroke();
+      }
+    }
+  } else {
+    // tail
+    ctx.fillStyle = sp.back;
+    ctx.beginPath();
+    ctx.moveTo(-L*0.42, 0);
+    ctx.lineTo(-L*0.62, -H*0.85 + wag*10);
+    ctx.lineTo(-L*0.62,  H*0.85 + wag*10);
+    ctx.closePath(); ctx.fill();
+    // body
+    ctx.fillStyle = sp.col;
+    ctx.beginPath(); ctx.ellipse(0, 0, L*0.46, H, 0, 0, 7); ctx.fill();
+    // dorsal shading
+    ctx.fillStyle = sp.back;
+    ctx.beginPath(); ctx.ellipse(0, -H*0.44, L*0.4, H*0.4, 0, 0, 7); ctx.fill();
+    if (sp.key === "pjshark"){
+      ctx.beginPath(); ctx.moveTo(L*0.02,-H*0.8); ctx.lineTo(-L*0.12,-H*1.9); ctx.lineTo(-L*0.2,-H*0.8); ctx.closePath(); ctx.fill();
+    }
+    // eye
+    ctx.fillStyle = "#0C1418";
+    ctx.beginPath(); ctx.arc(L*0.3, -H*0.22, Math.max(1.3, L*0.045), 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawShark(s){
+  const L = s.len, H = L * 0.26;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.scale(s.dir, 1);
+  const wag = Math.sin(s.ph) * 0.5;
+
+  // tail
+  ctx.fillStyle = s.sp.back;
+  ctx.beginPath();
+  ctx.moveTo(-L*0.40, 0);
+  ctx.lineTo(-L*0.58, -H*1.5 + wag*10);
+  ctx.lineTo(-L*0.50,  0 + wag*6);
+  ctx.lineTo(-L*0.56,  H*1.0 + wag*10);
+  ctx.closePath(); ctx.fill();
+  // body
+  ctx.fillStyle = s.sp.col;
+  ctx.beginPath(); ctx.ellipse(0, 0, L*0.44, H, 0, 0, 7); ctx.fill();
+  // pale belly
+  ctx.fillStyle = s.sp.belly;
+  ctx.beginPath(); ctx.ellipse(-L*0.02, H*0.42, L*0.36, H*0.42, 0, 0, 7); ctx.fill();
+  // dark back
+  ctx.fillStyle = s.sp.back;
+  ctx.beginPath(); ctx.ellipse(0, -H*0.45, L*0.4, H*0.45, 0, 0, 7); ctx.fill();
+  // dorsal + pectoral
+  ctx.beginPath();
+  ctx.moveTo(L*0.06, -H*0.85); ctx.lineTo(-L*0.06, -H*2.3); ctx.lineTo(-L*0.16, -H*0.85);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(L*0.10, H*0.5); ctx.lineTo(-L*0.02, H*1.7); ctx.lineTo(L*0.20, H*0.7);
+  ctx.closePath(); ctx.fill();
+  // snout + eye
+  ctx.fillStyle = s.sp.col;
+  ctx.beginPath();
+  ctx.moveTo(L*0.40, -H*0.4); ctx.lineTo(L*0.54, 0); ctx.lineTo(L*0.40, H*0.35);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#0B1216";
+  ctx.beginPath(); ctx.arc(L*0.31, -H*0.28, Math.max(1.6, L*0.022), 0, 7); ctx.fill();
+  // gills
+  ctx.strokeStyle = s.sp.back; ctx.lineWidth = 1.2;
+  for (let i = 0; i < 4; i++){
+    ctx.beginPath();
+    ctx.moveTo(L*0.20 - i*L*0.035, -H*0.35);
+    ctx.lineTo(L*0.19 - i*L*0.035,  H*0.25);
+    ctx.stroke();
+  }
+  if (s.hurt > 0){
+    ctx.fillStyle = `rgba(232,84,63,${clamp(s.hurt*1.4,0,.6)})`;
+    ctx.beginPath(); ctx.ellipse(0, 0, L*0.46, H*1.1, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+
+  // damage pips, only once it has been hit
+  if (s.hp < s.maxhp){
+    const w = 7, gap = 3, total = s.maxhp * w + (s.maxhp-1) * gap;
+    for (let i = 0; i < s.maxhp; i++){
+      ctx.fillStyle = i < s.hp ? "rgba(239,228,204,.85)" : "rgba(239,228,204,.22)";
+      ctx.fillRect(s.x - total/2 + i*(w+gap), s.y - L*0.34 - 14, w, 3);
+    }
+  }
+}
+
+function drawVent(v){
+  const spent = v.supply <= 0;
+  // crack in the rock
+  ctx.fillStyle = "rgba(8,20,26,.8)";
+  ctx.beginPath(); ctx.ellipse(v.x, v.y + 6, 16, 6, 0, 0, 7); ctx.fill();
+  if (spent) return;
+  const frac = clamp(v.supply / VENT_SUPPLY, 0, 1);
+  // rising column
+  ctx.strokeStyle = "rgba(228,244,236,.55)"; ctx.lineWidth = 1.1;
+  for (let i = 0; i < 16; i++){
+    const t = ((T * 0.5 + i * 0.09 + v.ph) % 1);
+    const yy = v.y - t * 210;
+    const xx = v.x + Math.sin(t * 7 + i) * (7 + t * 16);
+    const r = 1.6 + t * 3.6;
+    ctx.globalAlpha = (1 - t) * (0.35 + frac * 0.55);
+    ctx.beginPath(); ctx.arc(xx, yy, r, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // supply ring on the seep itself
+  ctx.strokeStyle = "rgba(111,198,176,.75)"; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(v.x, v.y + 6, 22, -Math.PI/2, -Math.PI/2 + frac * Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawCrate(cr){
+  const bob = Math.sin(cr.ph * 1.6) * 2.5;
+  ctx.save();
+  ctx.translate(cr.x, cr.y + bob);
+  // faint glow so it reads at depth
+  ctx.fillStyle = "rgba(233,196,106,.13)";
+  ctx.beginPath(); ctx.arc(0, 0, 26, 0, 7); ctx.fill();
+  // canvas roll of bolts
+  ctx.fillStyle = "#6B5A3E";
+  ctx.fillRect(-13, -8, 26, 16);
+  ctx.fillStyle = "#8A7550";
+  ctx.fillRect(-13, -8, 26, 5);
+  ctx.strokeStyle = "#D6C79E"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+  for (let i = -1; i <= 1; i++){
+    ctx.beginPath(); ctx.moveTo(i*7 - 2, -13); ctx.lineTo(i*7 + 1, 5); ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(233,196,106,.8)"; ctx.lineWidth = 1;
+  ctx.strokeRect(-13, -8, 26, 16);
+  ctx.restore();
+}
+
+function render(){
+  const m = clamp((cam.y + VH*0.45 - SURFACE_Y) / PX_PER_M, 0, MAX_DEPTH_M);
+  const top = waterAt(clamp((cam.y - SURFACE_Y)/PX_PER_M, 0, MAX_DEPTH_M));
+  const bot = waterAt(clamp((cam.y + VH - SURFACE_Y)/PX_PER_M, 0, MAX_DEPTH_M));
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0, `rgb(${top[0]},${top[1]},${top[2]})`);
+  g.addColorStop(1, `rgb(${bot[0]},${bot[1]},${bot[2]})`);
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+
+  ctx.save();
+  ctx.translate(-cam.x, -cam.y);
+
+  // surface shimmer + boat
+  if (cam.y < SURFACE_Y + 200){
+    ctx.fillStyle = "rgba(226,240,214,.30)";
+    ctx.fillRect(0, SURFACE_Y - 60, WORLD_W, 60);
+    ctx.strokeStyle = "rgba(238,246,228,.45)"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x <= WORLD_W; x += 18){
+      const y = SURFACE_Y + Math.sin(x*0.02 + T*1.4) * 4;
+      x === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    // light shafts
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = "#EAF3D4";
+    for (let i = 0; i < 7; i++){
+      const bx = (i * 331 + Math.sin(T*0.2 + i) * 24) % WORLD_W;
+      ctx.beginPath();
+      ctx.moveTo(bx, SURFACE_Y); ctx.lineTo(bx + 40, SURFACE_Y);
+      ctx.lineTo(bx + 150, SURFACE_Y + 900); ctx.lineTo(bx + 10, SURFACE_Y + 900);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // rocks
+  for (const r of rocks){
+    if (r.x + r.w < cam.x - 80 || r.x - r.w > cam.x + VW + 80) continue;
+    const dm = clamp((r.y - SURFACE_Y)/PX_PER_M, 0, MAX_DEPTH_M);
+    const c = waterAt(dm);
+    ctx.fillStyle = `rgb(${Math.round(c[0]*0.42+12)},${Math.round(c[1]*0.44+12)},${Math.round(c[2]*0.46+14)})`;
+    ctx.beginPath();
+    ctx.moveTo(r.x - r.w/2, r.y + r.h);
+    ctx.quadraticCurveTo(r.x - r.w*0.36, r.y - r.h*0.5, r.x, r.y - r.h*0.2);
+    ctx.quadraticCurveTo(r.x + r.w*0.4, r.y - r.h*0.7, r.x + r.w/2, r.y + r.h);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // seabed
+  ctx.fillStyle = "#14252B";
+  ctx.fillRect(0, SEABED, WORLD_W, WORLD_H - SEABED);
+
+  // kelp
+  for (const k of kelp){
+    if (k.x < cam.x - 120 || k.x > cam.x + VW + 120) continue;
+    const sway = Math.sin(T * 0.7 + k.sway) * 26;
+    ctx.strokeStyle = `rgb(${34 + k.tint},${Math.round(78 + k.tint*1.4)},${46 + k.tint})`;
+    ctx.lineWidth = k.w; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(k.x, k.y);
+    ctx.quadraticCurveTo(k.x + sway*0.5, k.y - k.h*0.55, k.x + sway, k.y - k.h);
+    ctx.stroke();
+    ctx.lineWidth = k.w * 2.4; ctx.globalAlpha = .5;
+    for (let i = 1; i <= 4; i++){
+      const t = i/5, yy = k.y - k.h*t, xx = k.x + sway*t*t;
+      ctx.beginPath(); ctx.moveTo(xx, yy); ctx.lineTo(xx + (i%2?18:-18), yy - 8); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // motes
+  ctx.fillStyle = "rgba(232,240,220,.30)";
+  for (const p of motes){
+    if (p.x < cam.x - 20 || p.x > cam.x + VW + 20 || p.y < cam.y - 20 || p.y > cam.y + VH + 20) continue;
+    ctx.beginPath();
+    ctx.arc(p.x + Math.sin(T*0.4 + p.ph)*p.drift, p.y + Math.cos(T*0.3 + p.ph)*4, p.r, 0, 7);
+    ctx.fill();
+  }
+
+  for (const v of vents){
+    if (v.x < cam.x - 260 || v.x > cam.x + VW + 260 || v.y < cam.y - 320 || v.y > cam.y + VH + 120) continue;
+    drawVent(v);
+  }
+
+  for (const cr of crates){
+    if (cr.taken) continue;
+    if (cr.x < cam.x - 60 || cr.x > cam.x + VW + 60 || cr.y < cam.y - 60 || cr.y > cam.y + VH + 60) continue;
+    drawCrate(cr);
+  }
+
+  for (const f of fish) drawFish(f);
+  for (const s of sharks){
+    if (s.x < cam.x - 260 || s.x > cam.x + VW + 260 || s.y < cam.y - 200 || s.y > cam.y + VH + 200) continue;
+    drawShark(s);
+  }
+
+  // bubbles
+  ctx.strokeStyle = "rgba(235,245,230,.55)"; ctx.lineWidth = 1;
+  for (const b of bubbles){ ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); }
+
+  // spear line
+  if (spear.state !== "idle"){
+    ctx.strokeStyle = "rgba(240,236,214,.55)"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(diver.x, diver.y); ctx.lineTo(spear.x, spear.y); ctx.stroke();
+    const a = Math.atan2(spear.y - diver.y, spear.x - diver.x);
+    ctx.save(); ctx.translate(spear.x, spear.y); ctx.rotate(a);
+    if (spear.gun){
+      ctx.fillStyle = "#E9C46A"; ctx.fillRect(-18, -1.8, 26, 3.6);
+      ctx.beginPath(); ctx.moveTo(10,-5.5); ctx.lineTo(20,0); ctx.lineTo(10,5.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(233,196,106,.35)";
+      ctx.beginPath(); ctx.moveTo(-18,-4); ctx.lineTo(-30,0); ctx.lineTo(-18,4); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle = "#E4DCC0"; ctx.fillRect(-14, -1.2, 20, 2.4);
+      ctx.beginPath(); ctx.moveTo(8,-4); ctx.lineTo(16,0); ctx.lineTo(8,4); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // aim guide — matters now that aim is decoupled from swimming
+  if (mode === "dive" && !blackout && spear.state === "idle"){
+    ctx.save();
+    ctx.strokeStyle = aimStick ? "rgba(233,196,106,.55)" : "rgba(239,228,204,.20)";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([5,7]);
+    ctx.beginPath();
+    ctx.moveTo(diver.x + Math.cos(diver.aim)*20, diver.y + Math.sin(diver.aim)*20);
+    ctx.lineTo(diver.x + Math.cos(diver.aim)*300, diver.y + Math.sin(diver.aim)*300);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // diver
+  ctx.save();
+  ctx.translate(diver.x, diver.y);
+  ctx.rotate(Math.sin(diver.kick)*0.06);
+  ctx.scale(diver.face, 1);
+  const fin = Math.sin(diver.kick) * 7;
+  ctx.fillStyle = "#1B3038";                                   // fins
+  ctx.beginPath(); ctx.moveTo(-8, 2); ctx.lineTo(-24, fin - 4); ctx.lineTo(-22, fin + 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#22333B";                                   // body
+  ctx.beginPath(); ctx.ellipse(0, 0, 15, 8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3E525A";                                   // tank
+  ctx.fillRect(-9, -11, 12, 7);
+  ctx.fillStyle = "#D8C9A6";                                   // head
+  ctx.beginPath(); ctx.arc(14, -3, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = "#0E1D24";
+  ctx.beginPath(); ctx.arc(16, -4, 3.4, 0, 7); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+
+  // depth vignette
+  const vg = clamp((m - 12)/28, 0, 1) * 0.5;
+  if (vg > 0.01){
+    const rg = ctx.createRadialGradient(VW/2, VH*0.45, VH*0.18, VW/2, VH*0.45, VH*0.85);
+    rg.addColorStop(0, "rgba(0,0,0,0)");
+    rg.addColorStop(1, `rgba(2,10,16,${vg})`);
+    ctx.fillStyle = rg; ctx.fillRect(0,0,VW,VH);
+  }
+  if (blackout){
+    ctx.fillStyle = `rgba(2,8,12,${clamp(blackoutT*0.5, 0, 0.72)})`;
+    ctx.fillRect(0,0,VW,VH);
+  }
+
+  // joystick
+  if (stick){
+    ctx.strokeStyle = "rgba(239,228,204,.28)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(stick.ox, stick.oy, 54, 0, 7); ctx.stroke();
+    ctx.fillStyle = "rgba(239,228,204,.3)";
+    ctx.beginPath(); ctx.arc(stick.ox + stick.dx*54, stick.oy + stick.dy*54, 20, 0, 7); ctx.fill();
+  }
+}
+
+// ---------------------------------------------------------------- HUD sync
+const el = {
+  airtime: document.getElementById("airtime"),
+  airfill: document.getElementById("airfill"),
+  depth: document.getElementById("depth"),
+  bag: document.getElementById("bag"),
+  bagfill: document.getElementById("bagfill")
+};
+
+function syncHUD(){
+  const pct = clamp(air / TANK, 0, 1);
+  el.airfill.style.width = (pct*100).toFixed(1) + "%";
+  el.airfill.className = pct < 0.15 ? "crit" : pct < 0.3 ? "warn" : "";
+  const secs = Math.max(0, air / ata());
+  el.airtime.textContent = `${Math.floor(secs/60)}:${String(Math.floor(secs%60)).padStart(2,"0")}`;
+  el.depth.textContent = depthM().toFixed(0);
+  el.bag.textContent = bagKg.toFixed(1);
+  const bp = clamp(bagKg / CAPACITY, 0, 1);
+  el.bagfill.style.width = (bp*100) + "%";
+  el.bagfill.className = bp > 0.92 ? "full" : "";
+  fireBtn.disabled = mode !== "dive" || spear.state !== "idle" || spear.cd > 0;
+  swapBtn.disabled = mode !== "dive";
+  swapBtn.classList.toggle("armed", weapon === "gun");
+  swapBtn.firstElementChild.textContent = weapon === "gun" ? "GUN" : "SPEAR";
+  document.getElementById("ammoct").textContent =
+    weapon === "gun" ? `${ammo} bolt${ammo === 1 ? "" : "s"}`
+    : ammo > 0 ? `${ammo} bolts \u2192 gun` : "no bolts";
+}
+
+// ---------------------------------------------------------------- loop
+let last = performance.now();
+function frame(now){
+  const dt = Math.min((now - last)/1000, 0.05);
+  last = now; T += dt;
+  update(dt);
+  render();
+  syncHUD();
+  requestAnimationFrame(frame);
+}
+
+resize();
+buildScenery();
+stockFish();
+cam.x = clamp(diver.x - VW/2, 0, Math.max(0, WORLD_W - VW));
+cam.y = 0;
+brief();
+requestAnimationFrame(frame);
+</script>
