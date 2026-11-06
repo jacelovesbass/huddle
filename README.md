@@ -7,6 +7,7 @@ own GIFs, your own packs that you can take away with you.
 **Live:** https://jacelovesbass.github.io/purechat/
 **Docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [docs/DEVLOG.md](docs/DEVLOG.md) · [docs/DECISIONS.md](docs/DECISIONS.md) ·
+[docs/PROPOSAL.md](docs/PROPOSAL.md) ·
 [PACK_FORMAT.md](PACK_FORMAT.md)
 
 ## Getting it running
