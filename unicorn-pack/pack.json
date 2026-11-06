@@ -1,0 +1,43 @@
+{
+  "format": "purepack/1",
+  "name": "Capybara unicorns",
+  "author": "Pure Chat",
+  "emoji": [
+    {
+      "name": "capycorn",
+      "file": "capycorn.png"
+    },
+    {
+      "name": "happy",
+      "file": "happy.png"
+    },
+    {
+      "name": "magic",
+      "file": "magic.png"
+    },
+    {
+      "name": "love",
+      "file": "love.png"
+    },
+    {
+      "name": "wink",
+      "file": "wink.png"
+    },
+    {
+      "name": "cool",
+      "file": "cool.png"
+    },
+    {
+      "name": "sleepy",
+      "file": "sleepy.png"
+    },
+    {
+      "name": "shocked",
+      "file": "shocked.png"
+    },
+    {
+      "name": "sad",
+      "file": "sad.png"
+    }
+  ]
+}
