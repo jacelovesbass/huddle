@@ -67,5 +67,19 @@ await a.waitForSelector('.sheet-card');
 const kept = await a.locator('.cell[title=":halo:"]').count();
 console.log(kept === 1 ? 'PASS: kept into the group library' : 'FAIL: not in the library');
 await a.screenshot({ path: 'gif-library.png' });
+// The path that actually works on a phone: pick the GIF out of Photos.
+await a.locator('.sheet').click({ position: { x: 8, y: 8 } });
+await a.waitForTimeout(300);
+await a.locator('.tool.gif').click();
+await a.waitForSelector('.sheet-card');
+await a.locator('.sheet-card input[type=file]').setInputFiles('capybara-pack/happy.png');
+await a.waitForTimeout(3500);
+const draft2 = await a.getByPlaceholder('Message').inputValue();
+console.log(/:happy/.test(draft2) ? `PASS: photo pick inserted ${draft2.trim()}`
+                                  : `FAIL: draft is "${draft2}"`);
+await a.getByRole('button', { name: 'Send' }).last().click();
+await b.waitForTimeout(2500);
+const picked = await b.locator('.bubble img.emoji').count();
+console.log(picked >= 1 ? 'PASS: Foxy sees the picked GIF' : 'FAIL: Foxy got nothing');
 
 await browser.close();

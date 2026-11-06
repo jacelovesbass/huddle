@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
-import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames, toMediaUrl } from './packs.js';
+import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames, toMediaUrl, normalise, GIF_MAX_BYTES } from './packs.js';
 
 // The halo. Inline so it scales and needs no path juggling under a base path.
 function Halo({ size = 64, className = '' }) {
@@ -232,6 +232,13 @@ function Chat({ name, room, onLeave }) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'packs', filter: `room_id=eq.${room.id}` },
         loadPacks)
+      // Also watch emoji rows: adding one to a pack that already exists fires
+      // no packs event, so a GIF kept into Saved GIFs reached nobody else.
+      // Unfiltered because emoji rows carry a pack, not a room; loadPacks
+      // still only reads this room.
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'emoji' },
+        loadPacks)
       .on('presence', { event: 'sync' },
         () => setOnline(Object.keys(ch.presenceState())))
       .subscribe(status => {
@@ -329,6 +336,11 @@ function Chat({ name, room, onLeave }) {
         <MediaSheet
           room={room} name={name} packs={packs} emoji={emoji}
           onSend={url => { setDraft(d => (d ? d + ' ' : '') + url); setShowMedia(false); }}
+          onSendEmoji={e => {
+            picked.current.set(e.name, e);
+            setDraft(d => (d ? d + ' ' : '') + `:${e.name}:`);
+            setShowMedia(false);
+          }}
           onClose={() => setShowMedia(false)}
         />
       )}
@@ -453,8 +465,9 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
  * library. Nothing is uploaded: a kept GIF is a pack entry whose url points at
  * wherever the picture already lives.
  */
-function MediaSheet({ room, name, packs, emoji, onSend, onClose }) {
+function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) {
   const [raw, setRaw] = useState('');
+  const fileRef = useRef(null);
   const [keepName, setKeepName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -462,22 +475,54 @@ function MediaSheet({ room, name, packs, emoji, onSend, onClose }) {
   const taken = new Set(emoji.map(e => e.name));
   const clean = keepName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
+  async function shelfId() {
+    const existing = packs.find(p => p.name === 'Saved GIFs');
+    if (existing) return existing.id;
+    const { data, error } = await supabase.from('packs')
+      .insert({ room_id: room.id, name: 'Saved GIFs', added_by: name }).select().single();
+    if (error) throw error;
+    return data.id;
+  }
+
+  const freeName = base => {
+    let n = base, i = 2;
+    while (taken.has(n)) n = `${base}-${i++}`;
+    return n;
+  };
+
   async function keep() {
     setBusy(true);
     setErr('');
     try {
-      let shelf = packs.find(p => p.name === 'Saved GIFs');
-      if (!shelf) {
-        const { data, error } = await supabase.from('packs')
-          .insert({ room_id: room.id, name: 'Saved GIFs', added_by: name }).select().single();
-        if (error) throw error;
-        shelf = data;
-      }
-      let n = clean, i = 2;
-      while (taken.has(n)) n = `${clean}-${i++}`;
-      const { error } = await supabase.from('emoji').insert({ pack_id: shelf.id, name: n, url });
+      const { error } = await supabase.from('emoji')
+        .insert({ pack_id: await shelfId(), name: freeName(clean), url });
       if (error) throw error;
       onSend(url);
+    } catch (ex) {
+      setErr(ex.message || String(ex));
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Pick a GIF straight out of Photos. Copying a *link* on iOS is awkward, so
+   * this is the path that actually works on a phone. It is stored rather than
+   * linked, which breaks the store-nothing rule on purpose and is capped
+   * tightly. It goes in as a library entry and the message carries a
+   * reference, so sending the same GIF ten times costs one copy.
+   */
+  async function fromPhotos(file) {
+    setBusy(true);
+    setErr('');
+    try {
+      const dataUrl = await normalise(file, GIF_MAX_BYTES);
+      const base = (file.name || 'gif').replace(/\.[^.]+$/, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'gif';
+      const { data, error } = await supabase.from('emoji')
+        .insert({ pack_id: await shelfId(), name: freeName(base), url: dataUrl })
+        .select().single();
+      if (error) throw error;
+      onSendEmoji(data);
     } catch (ex) {
       setErr(ex.message || String(ex));
       setBusy(false);
@@ -492,7 +537,16 @@ function MediaSheet({ room, name, packs, emoji, onSend, onClose }) {
           <button className="link" onClick={onClose}>Done</button>
         </div>
 
-        <p className="muted">Find a GIF anywhere, copy its link, paste it here.</p>
+        <div className="pack-actions">
+          <button onClick={() => fileRef.current.click()} disabled={busy}>
+            {busy ? 'Working...' : 'Choose from Photos'}
+          </button>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" hidden
+               onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) fromPhotos(f); }} />
+
+        <div className="or">or paste a link</div>
+        <p className="muted hint">On giphy.com, open the GIF on its own page and copy the address bar.</p>
         <input autoFocus value={raw} onChange={e => setRaw(e.target.value)}
                placeholder="https://..." />
 

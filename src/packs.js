@@ -20,14 +20,21 @@ export function nameFromFilename(filename) {
  * ever processes an image. Animated GIFs pass through untouched: a canvas only
  * sees their first frame, and losing the animation is worse than the bytes.
  */
-export async function normalise(blob) {
+export const GIF_MAX_BYTES = 1024 * 1024;
+
+export async function normalise(blob, maxBytes = MAX_BYTES) {
   if (blob.type === 'image/gif') {
-    if (blob.size > MAX_BYTES) throw new Error(`gif is ${Math.round(blob.size / 1024)} KB, limit is 256 KB`);
+    // An animated GIF cannot be shrunk in a canvas without losing the
+    // animation, so the only lever is refusing one that is too big.
+    if (blob.size > maxBytes) {
+      throw new Error(`that GIF is ${Math.round(blob.size / 1024)} KB, the limit is ${Math.round(maxBytes / 1024)} KB`);
+    }
     return toDataUrl(blob);
   }
 
   const bitmap = await createImageBitmap(blob);
-  const scale = Math.min(1, MAX_PX / Math.max(bitmap.width, bitmap.height));
+  const limitPx = maxBytes > MAX_BYTES ? 320 : MAX_PX;
+  const scale = Math.min(1, limitPx / Math.max(bitmap.width, bitmap.height));
   const w = Math.max(1, Math.round(bitmap.width * scale));
   const h = Math.max(1, Math.round(bitmap.height * scale));
 
@@ -39,7 +46,7 @@ export async function normalise(blob) {
 
   const out = await new Promise(res => canvas.toBlob(res, 'image/webp', 0.9));
   if (!out) throw new Error('could not re-encode image');
-  if (out.size > MAX_BYTES) throw new Error('image is too large after shrinking');
+  if (out.size > maxBytes) throw new Error('image is too large after shrinking');
   return toDataUrl(out);
 }
 
