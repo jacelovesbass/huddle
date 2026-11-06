@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pure Chat — a group chat where the stuff in it is yours</title>
+<meta name="description" content="A private group chat for friends. Bring your own emoji and GIFs, keep them in a pack you can take anywhere, and leave the algorithm behind.">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<meta property="og:title" content="Pure Chat">
+<meta property="og:description" content="A private group chat where the emoji and GIFs belong to your group, not to a platform.">
+<meta property="og:image" content="icon-512.png">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --line:#262b36; --text:#e8eaed;
+    --muted:#8b93a3; --blue:#2f6df6; --gold:#f6c452; --col:1020px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--col);margin:0 auto;padding:0 22px}
+  h1,h2,h3{line-height:1.2;letter-spacing:-.5px;margin:0}
+  h1{font-size:clamp(34px,6vw,60px)}
+  h2{font-size:clamp(25px,3.6vw,36px);margin-bottom:14px}
+  h3{font-size:19px;margin-bottom:6px}
+  p{margin:0 0 14px}
+  a{color:var(--text)}
+  .muted{color:var(--muted)}
+
+  nav{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.86);
+      backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:14px;padding-block:13px}
+  nav strong{font-size:18px}
+  nav .spacer{flex:1}
+  nav a.plain{color:var(--muted);text-decoration:none;font-size:15px}
+  nav a.plain:hover{color:var(--text)}
+
+  .btn{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;
+       padding:12px 20px;border-radius:11px;font-weight:600;white-space:nowrap}
+  .btn.small{padding:9px 15px;font-size:15px}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+
+  header.hero{padding:72px 0 58px;text-align:center}
+  .halo{display:block;margin:0 auto 20px;filter:drop-shadow(0 0 22px rgba(246,196,82,.4))}
+  .lede{font-size:clamp(18px,2.3vw,21px);color:var(--muted);max-width:620px;margin:16px auto 28px}
+  .cta{display:flex;gap:11px;justify-content:center;flex-wrap:wrap}
+  .free{margin-top:16px;font-size:14px;color:var(--muted)}
+
+  section{padding:54px 0;border-top:1px solid var(--line)}
+  .lead{max-width:720px}
+
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:22px;margin-top:26px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .card p:last-child{margin-bottom:0}
+  .card .em{font-size:30px;line-height:1;margin-bottom:10px;display:block}
+
+  table{width:100%;border-collapse:collapse;margin-top:24px;font-size:16px}
+  th,td{padding:13px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:.6px}
+  td:first-child{font-weight:600;width:30%}
+  .yes{color:#49c96d;font-weight:600}
+  .no{color:#8b93a3}
+  .scroll{overflow-x:auto}
+
+  .strip{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0 6px}
+  .strip img{width:62px;height:62px;background:var(--panel);border:1px solid var(--line);
+             border-radius:13px;padding:7px}
+
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:16px;overflow-x:auto;font-size:13.5px;line-height:1.55;margin:18px 0 0}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .tiny{font-size:14px;color:var(--muted)}
+
+  .honest{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+          border-radius:12px;padding:22px}
+  .honest ul{margin:10px 0 0;padding-left:20px}
+  .honest li{margin-bottom:7px}
+
+  footer{padding:40px 0 56px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+  footer a{color:var(--muted)}
+
+  /* On a phone the nav title wrapped onto two lines and the comparison table
+     squeezed its columns into unreadable slivers. Let the table scroll at a
+     readable width instead of shrinking to fit. */
+  @media (max-width:620px){
+    nav strong{white-space:nowrap}
+    nav a.plain{display:none}
+    table{min-width:560px}
+    .scroll{-webkit-overflow-scrolling:touch}
+    .scroll::after{content:"swipe the table sideways";display:block;font-size:12px;
+                   color:var(--muted);padding:8px 2px 0}
+  }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <svg width="30" height="13" viewBox="0 0 320 134" aria-hidden="true">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/><stop offset="45%" stop-color="#f6c452"/>
+      <stop offset="100%" stop-color="#d79a1f"/></linearGradient></defs>
+    <ellipse cx="160" cy="70" rx="138" ry="48" fill="none" stroke="url(#g)" stroke-width="22"/>
+  </svg>
+  <strong>Pure Chat</strong>
+  <span class="spacer"></span>
+  <a class="plain" href="#different">What's different</a>
+  <a class="btn small" href="./">Open the app</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <svg class="halo" width="112" height="47" viewBox="0 0 320 134" aria-hidden="true">
+    <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/><stop offset="45%" stop-color="#f6c452"/>
+      <stop offset="100%" stop-color="#d79a1f"/></linearGradient></defs>
+    <ellipse cx="160" cy="70" rx="138" ry="48" fill="none" stroke="url(#g2)" stroke-width="22"/>
+    <ellipse cx="160" cy="63" rx="138" ry="48" fill="none" stroke="#fff6dc" stroke-width="4" opacity=".6"/>
+  </svg>
+  <h1>A group chat where<br>the stuff in it is yours</h1>
+  <p class="lede">Your mates, your in-jokes, your own emoji and GIFs, in a pack
+     you can take with you. No feed, no algorithm, no ads, nobody suggesting who
+     you should talk to.</p>
+  <div class="cta">
+    <a class="btn" href="./">Start a group</a>
+    <a class="btn ghost" href="#different">See what's different</a>
+  </div>
+  <p class="free">Free. No account, no email, no app store. Works on any phone.</p>
+</div></header>
+
+<section id="different"><div class="wrap">
+  <h2>Every chat app has a toolbar. The problem is what's in it.</h2>
+  <p class="muted lead">
+    Open Messenger and you get games nobody plays, a GIF search that never finds
+    the one you want, and stickers drawn for somebody else. It is a big
+    catalogue, and that is exactly the problem: it is not yours.</p>
+  <p class="muted lead">
+    Your group reuses about twenty GIFs. Searching a library of millions to find
+    one of them is a tax you pay for not owning it. Twenty does not need a
+    search box at all.</p>
+
+  <div class="cols">
+    <div class="card">
+      <span class="em">&#127890;</span>
+      <h3>Bring your own emoji</h3>
+      <p class="muted">Make them with AI, draw them, photograph them. Drop them
+        in and type <code>:kev:</code>. Everyone in the group sees them, whether
+        or not they installed anything.</p>
+    </div>
+    <div class="card">
+      <span class="em">&#128230;</span>
+      <h3>Packs you can take away</h3>
+      <p class="muted">A pack is an ordinary zip file. Export it, email it, keep
+        it for ten years, load it into another group. No other chat app lets you
+        walk out with your emoji.</p>
+    </div>
+    <div class="card">
+      <span class="em">&#128257;</span>
+      <h3>A GIF library that fills itself</h3>
+      <p class="muted">Every GIF anyone sends is there next time, newest first,
+        searchable. No saving, no faffing. The ones you actually use, not a
+        catalogue of millions.</p>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Made in an afternoon, by the group</h2>
+  <p class="muted lead">
+    Ask any AI image tool for a sheet of faces in one style, drop them in, name
+    them. Now your group has emoji that mean something to the eight of you and
+    nothing to anybody else. That is the point.</p>
+  <div class="strip">
+    <img src="img/happy.png" alt="Capybara, happy">
+    <img src="img/cool.png" alt="Capybara wearing sunglasses">
+    <img src="img/love.png" alt="Capybara with heart eyes">
+    <img src="img/shocked.png" alt="Capybara, shocked">
+    <img src="img/sleepy.png" alt="Capybara, sleepy">
+    <img src="img/unicorn-capycorn.png" alt="Capybara unicorn">
+    <img src="img/unicorn-magic.png" alt="Capybara unicorn, sparkling">
+    <img src="img/unicorn-love.png" alt="Capybara unicorn with heart eyes">
+  </div>
+  <p class="tiny" style="text-align:center">Two packs anyone can install, free:
+    <a href="capybaras.zip">capybaras.zip</a> &middot;
+    <a href="capybara-unicorns.zip">capybara-unicorns.zip</a></p>
+</div></section>
+
+<section><div class="wrap">
+  <h2>How it compares</h2>
+  <div class="scroll"><table>
+    <tr><th></th><th>Pure Chat</th><th>Messenger / WhatsApp</th><th>Discord / Slack</th></tr>
+    <tr><td>Custom emoji</td>
+        <td class="yes">Yes, yours</td>
+        <td class="no">No</td>
+        <td class="yes">Yes, per server</td></tr>
+    <tr><td>Take your emoji with you</td>
+        <td class="yes">Export a zip</td>
+        <td class="no">No</td>
+        <td class="no">Re-upload one at a time</td></tr>
+    <tr><td>Account required</td>
+        <td class="yes">None</td>
+        <td class="no">Phone number</td>
+        <td class="no">Email and password</td></tr>
+    <tr><td>Algorithm deciding what you see</td>
+        <td class="yes">None</td>
+        <td class="no">Yes</td>
+        <td class="no">Some</td></tr>
+    <tr><td>Ads or upsells</td>
+        <td class="yes">None</td>
+        <td class="no">Yes</td>
+        <td class="no">Yes</td></tr>
+    <tr><td>Install</td>
+        <td class="yes">A link</td>
+        <td class="no">App store</td>
+        <td class="no">App store</td></tr>
+    <tr><td>Your media on their servers</td>
+        <td class="yes">Linked where possible</td>
+        <td class="no">All of it</td>
+        <td class="no">All of it</td></tr>
+  </table></div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>A pack is just a zip</h2>
+  <p class="muted lead">No proprietary format, no lock-in, nothing to sign up
+    for. An entry either carries its picture or points at one that already lives
+    somewhere else, which is why a GIF pack is a few hundred bytes and costs
+    nobody anything to keep.</p>
+<pre><code>friday-crew.zip
+├── pack.json
+├── kev.webp
+└── chicken.gif
+
+{
+  "format": "purepack/1",
+  "name": "Friday crew",
+  "emoji": [
+    { "name": "kev",     "file": "kev.webp" },
+    { "name": "chicken", "file": "chicken.gif" },
+    { "name": "classic", "url":  "https://example.com/classic.gif" }
+  ]
+}</code></pre>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Where it is up to</h2>
+  <div class="honest">
+    <p><strong>Pure Chat is early, and it is better to say so.</strong> It is in
+      daily use by its own small group, it is free to run, and these are the
+      honest limits today:</p>
+    <ul class="muted">
+      <li><strong>No accounts.</strong> You type a name. Anyone with the invite
+        link can join, and there is no way to remove them afterwards.</li>
+      <li><strong>Not private from us.</strong> Messages are not end-to-end
+        encrypted. Do not put anything in it you would mind being read.</li>
+      <li><strong>No notifications yet.</strong> You find out when you open it.</li>
+      <li><strong>Nothing is guaranteed.</strong> It is a side project on free
+        infrastructure, not a company.</li>
+    </ul>
+    <p class="muted" style="margin-top:12px">Good for a group of friends messing
+      about. Not yet good for anything that matters.</p>
+  </div>
+</div></section>
+
+<section style="text-align:center"><div class="wrap">
+  <h2>Start a group in about ten seconds</h2>
+  <p class="muted">Name yourself, name the group, send the link. That is it.</p>
+  <div class="cta" style="margin-top:22px"><a class="btn" href="./">Open Pure Chat</a></div>
+</div></section>
+
+<footer><div class="wrap">
+  Pure Chat is a hobby project. Open source:
+  <a href="https://github.com/jacelovesbass/purechat">github.com/jacelovesbass/purechat</a>
+  &middot; <a href="https://github.com/jacelovesbass/purechat/blob/main/PACK_FORMAT.md">pack format</a>
+</div></footer>
+
+</body>
+</html>

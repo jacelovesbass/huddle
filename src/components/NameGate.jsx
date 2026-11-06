@@ -10,6 +10,7 @@ export function NameGate({ onDone }) {
       <p className="muted">A private place for your group.</p>
       <input autoFocus value={v} onChange={e => setV(e.target.value)} placeholder="Your name" maxLength={24} />
       <button disabled={!v.trim()}>Continue</button>
+      <a className="about" href="about.html">What is Pure Chat?</a>
     </form>
   );
 }
