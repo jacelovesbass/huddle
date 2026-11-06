@@ -86,12 +86,12 @@ export async function readZip(file) {
 
     // A pack may carry its images or point at them. Both are just a URL here.
     if (entry.url) {
-      emoji.push({ name, url: String(entry.url) });
+      emoji.push({ name, url: String(entry.url), tags: String(entry.tags || '') });
       continue;
     }
     const f = zip.file(entry.file);
     if (!f) throw new Error(`pack.json lists ${entry.file}, which is not in the zip`);
-    emoji.push({ name, url: await normalise(await f.async('blob')) });
+    emoji.push({ name, url: await normalise(await f.async('blob')), tags: String(entry.tags || '') });
   }
 
   return { name: manifest.name || 'Untitled pack', author: manifest.author || null, emoji };
@@ -172,4 +172,53 @@ export function dedupeNames(emoji, takenNames) {
     taken.add(name);
     return { ...e, name };
   });
+}
+
+/**
+ * Words buried in a GIPHY page link, which are effectively its tags:
+ * giphy.com/gifs/homer-simpson-bushes-l0HlNaQ6 -> "homer simpson bushes".
+ * A media link (media0.giphy.com/...) carries only analytics ids, so this
+ * returns nothing for those and the person types their own.
+ */
+export function tagsFromUrl(text) {
+  let u;
+  try { u = new URL(text.trim()); } catch { return ''; }
+  if (!/(^|\.)giphy\.com$/i.test(u.hostname)) return '';
+  const m = u.pathname.match(/\/gifs\/(.+?)-([A-Za-z0-9]{6,})\/?$/);
+  if (!m) return '';
+  return m[1].split('-').filter(w => w.length > 1).join(' ').slice(0, 120);
+}
+
+/**
+ * Export a pack as a zip anyone can import anywhere. Entries that already
+ * point at a URL stay links, so a GIF pack exports as a few hundred bytes of
+ * JSON and carries no pictures at all.
+ */
+export async function exportPack(pack, entries) {
+  const zip = new JSZip();
+  const manifest = {
+    format: 'purepack/1',
+    name: pack.name,
+    author: pack.author || null,
+    exported: new Date().toISOString().slice(0, 10),
+    emoji: [],
+  };
+
+  let n = 0;
+  for (const e of entries) {
+    if (e.url.startsWith('data:')) {
+      // A stored picture has to travel as a file.
+      const ext = (e.url.match(/^data:image\/([a-z]+)/) || [, 'png'])[1];
+      const bytes = Uint8Array.from(atob(e.url.split(',')[1]), c => c.charCodeAt(0));
+      const file = `${e.name}.${ext === 'jpeg' ? 'jpg' : ext}`;
+      zip.file(file, bytes);
+      manifest.emoji.push({ name: e.name, file, ...(e.tags ? { tags: e.tags } : {}) });
+      n++;
+    } else {
+      manifest.emoji.push({ name: e.name, url: e.url, ...(e.tags ? { tags: e.tags } : {}) });
+    }
+  }
+
+  zip.file('pack.json', JSON.stringify(manifest, null, 2));
+  return { blob: await zip.generateAsync({ type: 'blob' }), files: n };
 }

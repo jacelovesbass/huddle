@@ -59,7 +59,7 @@ await a.waitForSelector('.sheet-card');
 await a.getByPlaceholder('https://...').fill(GIF);
 await a.waitForSelector('.preview img');
 await a.getByPlaceholder('Keep it as :name:').fill('halo');
-await a.getByRole('button', { name: 'Keep in pack' }).click();
+await a.getByRole('button', { name: 'Keep', exact: true }).click();
 await a.waitForTimeout(2500);
 
 await a.locator('.tool.emoji-tool').click();

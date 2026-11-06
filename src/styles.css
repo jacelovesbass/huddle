@@ -326,3 +326,30 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .keep input { flex: 1; }
 .keep button { flex: none; }
 .hint { font-size: 13px; margin-top: 8px; }
+
+/* Saved GIF library */
+.library { margin-bottom: 14px; }
+.search { margin-bottom: 8px; }
+
+.gif-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+.gif-cell {
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  background: var(--theirs);
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.gif-cell:hover { border-color: var(--mine); }
+.gif-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.tagbox { margin-top: 8px; }
+.pack-head span + span { display: flex; gap: 2px; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
-import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames, toMediaUrl, normalise, GIF_MAX_BYTES } from './packs.js';
+import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames, toMediaUrl, normalise, GIF_MAX_BYTES, tagsFromUrl, exportPack } from './packs.js';
 
 // The halo. Inline so it scales and needs no path juggling under a base path.
 function Halo({ size = 64, className = '' }) {
@@ -411,6 +411,23 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
     await supabase.from('packs').delete().eq('id', id);
   }
 
+  /** Hand the pack back as a zip, so it can go to another group or another app. */
+  async function download(pack, entries) {
+    setErr('');
+    try {
+      const { blob } = await exportPack(pack, entries);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = pack.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    } catch (ex) {
+      setErr(ex.message || String(ex));
+    }
+  }
+
   return (
     <div className="sheet" onClick={onClose}>
       <div className="sheet-card" onClick={e => e.stopPropagation()}>
@@ -429,7 +446,10 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
             <div key={p.id} className="pack">
               <div className="pack-head">
                 <span>{p.name} <span className="muted">{mine.length}</span></span>
-                <button className="link" onClick={() => removePack(p.id)}>Remove</button>
+                <span>
+                  <button className="link" onClick={() => download(p, mine)}>Export</button>
+                  <button className="link" onClick={() => removePack(p.id)}>Remove</button>
+                </span>
               </div>
               <div className="grid">
                 {mine.map(e => (
@@ -467,11 +487,25 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
  */
 function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) {
   const [raw, setRaw] = useState('');
+  const [tags, setTags] = useState('');
+  const [q, setQ] = useState('');
   const fileRef = useRef(null);
+
+  // Everything the group has kept, newest first, filtered by name or tag.
+  const shelf = packs.find(p => p.name === 'Saved GIFs');
+  const library = emoji
+    .filter(e => shelf && e.pack_id === shelf.id)
+    .filter(e => {
+      const needle = q.trim().toLowerCase();
+      return !needle || e.name.includes(needle) || (e.tags || '').toLowerCase().includes(needle);
+    })
+    .slice()
+    .reverse();
   const [keepName, setKeepName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const url = toMediaUrl(raw);
+  const autoTags = tagsFromUrl(raw);
   const taken = new Set(emoji.map(e => e.name));
   const clean = keepName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
@@ -495,7 +529,7 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
     setErr('');
     try {
       const { error } = await supabase.from('emoji')
-        .insert({ pack_id: await shelfId(), name: freeName(clean), url });
+        .insert({ pack_id: await shelfId(), name: freeName(clean), url, tags: (tags || autoTags).trim() });
       if (error) throw error;
       onSend(url);
     } catch (ex) {
@@ -519,7 +553,7 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
       const base = (file.name || 'gif').replace(/\.[^.]+$/, '')
         .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'gif';
       const { data, error } = await supabase.from('emoji')
-        .insert({ pack_id: await shelfId(), name: freeName(base), url: dataUrl })
+        .insert({ pack_id: await shelfId(), name: freeName(base), url: dataUrl, tags: tags.trim() })
         .select().single();
       if (error) throw error;
       onSendEmoji(data);
@@ -536,6 +570,22 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
           <strong>Send a GIF</strong>
           <button className="link" onClick={onClose}>Done</button>
         </div>
+
+        {shelf && library.length > 0 && (
+          <div className="library">
+            <input className="search" value={q} onChange={e => setQ(e.target.value)}
+                   placeholder={`Search ${library.length} saved GIF${library.length > 1 ? 's' : ''}`} />
+            <div className="gif-grid">
+              {library.map(e => (
+                <button key={e.id} className="gif-cell" title={`:${e.name}:${e.tags ? ' - ' + e.tags : ''}`}
+                        onClick={() => onSendEmoji(e)}>
+                  <img src={e.url} alt={e.name} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {shelf && library.length === 0 && q && <p className="muted">Nothing matches "{q}".</p>}
 
         <div className="pack-actions">
           <button onClick={() => fileRef.current.click()} disabled={busy}>
@@ -562,9 +612,11 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
               <input value={keepName} onChange={e => setKeepName(e.target.value)}
                      placeholder="Keep it as :name:" maxLength={32} />
               <button className="ghost" disabled={!clean || busy} onClick={keep}>
-                {busy ? 'Keeping...' : 'Keep in pack'}
+                {busy ? 'Keeping...' : 'Keep'}
               </button>
             </div>
+            <input className="tagbox" value={tags} onChange={e => setTags(e.target.value)}
+                   placeholder={autoTags ? `Tags: ${autoTags}` : 'Tags, so you can find it later'} />
             <p className="muted hint">Keeping it puts it in the group's library, one tap away next time.</p>
           </>
         )}
