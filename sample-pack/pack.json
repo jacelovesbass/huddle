@@ -1,0 +1,31 @@
+{
+  "format": "purepack/1",
+  "name": "Starter faces",
+  "author": "Pure Chat",
+  "emoji": [
+    {
+      "name": "yep",
+      "file": "yep.png"
+    },
+    {
+      "name": "nope",
+      "file": "nope.png"
+    },
+    {
+      "name": "shocked",
+      "file": "shocked.png"
+    },
+    {
+      "name": "smug",
+      "file": "smug.png"
+    },
+    {
+      "name": "dead",
+      "file": "dead.png"
+    },
+    {
+      "name": "party",
+      "file": "party.png"
+    }
+  ]
+}

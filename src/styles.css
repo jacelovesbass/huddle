@@ -252,3 +252,63 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
+
+/* Composer tool bar. One tool today; built as a bar because the point of the
+   product is that people add their own. */
+.composer { background: var(--panel); border-top: 1px solid var(--line); }
+
+.composer .tools {
+  display: flex;
+  gap: 6px;
+  padding-block: 8px 0;
+  padding-inline: max(16px, calc((100% - var(--column)) / 2));
+}
+
+.tool {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 19px;
+  line-height: 1;
+  background: var(--theirs);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.composer form { border-top: 0; background: transparent; }
+
+/* Emoji in a message. Sized to the line so a bubble does not jump. */
+.emoji { height: 1.45em; width: auto; vertical-align: -0.28em; margin: 0 1px; }
+
+/* A lone emoji with no words reads as a sticker, so make it one. */
+.bubble > .emoji:only-child { height: 4.5em; vertical-align: middle; }
+
+/* Pack shelf */
+.pack { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+
+.pack-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 6px; }
+
+.cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  background: var(--theirs);
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.cell:hover { border-color: var(--mine); }
+.cell img { max-width: 100%; max-height: 100%; }
+
+.pack-actions { display: flex; gap: 8px; margin-top: 16px; }
+.pack-actions button { flex: 1; }

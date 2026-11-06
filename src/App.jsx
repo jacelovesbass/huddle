@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
+import { readZip, readLooseImages, encodeShortcodes, splitBody } from './packs.js';
 
 // The halo. Inline so it scales and needs no path juggling under a base path.
 function Halo({ size = 64, className = '' }) {
@@ -150,7 +151,16 @@ function Chat({ name, room, onLeave }) {
   const [people, setPeople] = useState([]);
   const [online, setOnline] = useState([]);
   const [showPeople, setShowPeople] = useState(false);
+  const [packs, setPacks] = useState([]);
+  const [emoji, setEmoji] = useState([]);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [sendErr, setSendErr] = useState('');
   const end = useRef(null);
+
+  // Anyone in the room resolves an emoji id, so a person without the pack
+  // still sees the picture rather than a word in colons.
+  const byId = useMemo(() => new Map(emoji.map(e => [e.id, e])), [emoji]);
+  const byName = useMemo(() => new Map(emoji.map(e => [e.name, e])), [emoji]);
 
   // Share sheet on phones, clipboard everywhere else.
   async function invite() {
@@ -171,9 +181,18 @@ function Chat({ name, room, onLeave }) {
       .eq('room_id', room.id).order('joined_at')
       .then(({ data }) => live && setPeople(data || []));
 
-    supabase.from('messages').select('*').eq('room_id', room.id)
-      .order('created_at').limit(200)
-      .then(({ data }) => live && setMsgs(data || []));
+    const loadPacks = async () => {
+      const { data: ps } = await supabase.from('packs').select('*')
+        .eq('room_id', room.id).order('created_at');
+      if (!live) return;
+      setPacks(ps || []);
+      const ids = (ps || []).map(p => p.id);
+      if (!ids.length) return setEmoji([]);
+      const { data: es } = await supabase.from('emoji').select('*').in('pack_id', ids);
+      if (live) setEmoji(es || []);
+    };
+    loadPacks();
+
 
     // Record that I am here, then read the roster.
     supabase.from('members')
@@ -181,17 +200,37 @@ function Chat({ name, room, onLeave }) {
               { onConflict: 'room_id,name' })
       .then(loadPeople);
 
+    // Merge rather than replace, because history and live inserts race.
+    const merge = incoming => setMsgs(prev => {
+      const seen = new Map(prev.map(m => [m.id, m]));
+      for (const m of incoming) seen.set(m.id, m);
+      return [...seen.values()].sort((x, y) =>
+        x.created_at === y.created_at ? Number(x.id) - Number(y.id)
+                                      : x.created_at < y.created_at ? -1 : 1);
+    });
+
+    const loadHistory = () => supabase.from('messages').select('*')
+      .eq('room_id', room.id).order('created_at').limit(200)
+      .then(({ data }) => live && merge(data || []));
+
     const ch = supabase.channel('room:' + room.id, { config: { presence: { key: name } } })
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
-        ({ new: m }) => setMsgs(p => p.some(x => x.id === m.id) ? p : [...p, m]))
+        ({ new: m }) => merge([m]))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'members', filter: `room_id=eq.${room.id}` },
         loadPeople)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'packs', filter: `room_id=eq.${room.id}` },
+        loadPacks)
       .on('presence', { event: 'sync' },
         () => setOnline(Object.keys(ch.presenceState())))
       .subscribe(status => {
-        if (status === 'SUBSCRIBED') ch.track({ name, at: Date.now() });
+        if (status !== 'SUBSCRIBED') return;
+        ch.track({ name, at: Date.now() });
+        // Only now is it safe to read history: anything inserted from here on
+        // arrives over the socket, so the two cannot miss each other.
+        loadHistory();
       });
 
     return () => { live = false; supabase.removeChannel(ch); };
@@ -201,10 +240,12 @@ function Chat({ name, room, onLeave }) {
 
   async function send(e) {
     e.preventDefault();
-    const body = draft.trim();
+    const body = encodeShortcodes(draft.trim(), byName);
     if (!body) return;
     setDraft('');
-    await supabase.from('messages').insert({ room_id: room.id, author: name, body });
+    const { error } = await supabase.from('messages').insert({ room_id: room.id, author: name, body });
+    // Silently losing a message is the worst failure this app can have.
+    if (error) { setSendErr(error.message); setDraft(draft); }
   }
 
   return (
@@ -252,7 +293,7 @@ function Chat({ name, room, onLeave }) {
             <div key={m.id} className={'row ' + (mine ? 'mine' : 'theirs')}>
               <div className="bubble">
                 {!mine && !runOn && <div className="who">{m.author}</div>}
-                {m.body}
+                <Body body={m.body} byId={byId} />
               </div>
             </div>
           );
@@ -260,10 +301,119 @@ function Chat({ name, room, onLeave }) {
         <div ref={end} />
       </main>
 
-      <form onSubmit={send}>
-        <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Message" />
-        <button disabled={!draft.trim()}>Send</button>
-      </form>
+      {showEmoji && (
+        <EmojiSheet
+          room={room} name={name} packs={packs} emoji={emoji}
+          onPick={e => { setDraft(d => d + `:${e.name}:`); setShowEmoji(false); }}
+          onClose={() => setShowEmoji(false)}
+        />
+      )}
+
+      <div className="composer">
+        {sendErr && <p className="err send-err">Not sent: {sendErr}</p>}
+        {/* The tool bar. One button today; this is where gifs, music and
+            anything else people bring will hang off. */}
+        <div className="tools">
+          <button type="button" className="tool" title="Emoji"
+                  onClick={() => setShowEmoji(true)}>☺</button>
+        </div>
+        <form onSubmit={send}>
+          <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Message" />
+          <button disabled={!draft.trim()}>Send</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/** A message body: text with [[e:id]] tokens swapped for pictures. */
+function Body({ body, byId }) {
+  return splitBody(body).map((part, i) => {
+    if (part.text !== undefined) return <span key={i}>{part.text}</span>;
+    const e = byId.get(part.emojiId);
+    return e
+      ? <img key={i} className="emoji" src={e.url} alt={':' + e.name + ':'} title={':' + e.name + ':'} />
+      : <span key={i} className="muted">[emoji]</span>;
+  });
+}
+
+function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const zipRef = useRef(null);
+  const imgRef = useRef(null);
+
+  async function install(read) {
+    setErr('');
+    try {
+      const pack = await read();
+      setBusy(`Adding ${pack.emoji.length} emoji...`);
+      const { data: row, error } = await supabase.from('packs')
+        .insert({ room_id: room.id, name: pack.name, author: pack.author, added_by: name })
+        .select().single();
+      if (error) throw error;
+      const { error: e2 } = await supabase.from('emoji')
+        .insert(pack.emoji.map(e => ({ pack_id: row.id, name: e.name, url: e.url })));
+      if (e2) {
+        await supabase.from('packs').delete().eq('id', row.id);
+        throw e2;
+      }
+    } catch (ex) {
+      setErr(ex.message || String(ex));
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function removePack(id) {
+    await supabase.from('packs').delete().eq('id', id);
+  }
+
+  return (
+    <div className="sheet" onClick={onClose}>
+      <div className="sheet-card" onClick={e => e.stopPropagation()}>
+        <div className="sheet-head">
+          <strong>Emoji</strong>
+          <button className="link" onClick={onClose}>Done</button>
+        </div>
+
+        {emoji.length === 0 && !busy && (
+          <p className="muted">No packs yet. Add a .zip pack, or just pick some images.</p>
+        )}
+
+        {packs.map(p => {
+          const mine = emoji.filter(e => e.pack_id === p.id);
+          return (
+            <div key={p.id} className="pack">
+              <div className="pack-head">
+                <span>{p.name} <span className="muted">{mine.length}</span></span>
+                <button className="link" onClick={() => removePack(p.id)}>Remove</button>
+              </div>
+              <div className="grid">
+                {mine.map(e => (
+                  <button key={e.id} className="cell" title={':' + e.name + ':'} onClick={() => onPick(e)}>
+                    <img src={e.url} alt={e.name} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {busy && <p className="muted">{busy}</p>}
+        {err && <p className="err">{err}</p>}
+
+        <div className="pack-actions">
+          <button className="ghost" onClick={() => zipRef.current.click()}>Add pack (.zip)</button>
+          <button className="ghost" onClick={() => imgRef.current.click()}>Add images</button>
+        </div>
+
+        <input ref={zipRef} type="file" accept=".zip" hidden
+               onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) install(() => readZip(f)); }} />
+        <input ref={imgRef} type="file" accept="image/*" multiple hidden
+               onChange={e => { const fs = [...e.target.files]; e.target.value = '';
+                                if (fs.length) install(() => readLooseImages(fs, 'My pack')); }} />
+      </div>
     </div>
   );
 }
