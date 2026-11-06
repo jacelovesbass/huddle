@@ -38,7 +38,7 @@ await page.screenshot({ path: 'shot-boom-4-armed.png' });
 
 // Mid blast, caught while the flash is still on screen.
 await page.evaluate(() => window.__bomb(3, 1));
-await page.waitForTimeout(170);
+await page.waitForTimeout(150);
 await page.screenshot({ path: 'shot-boom-5-blast.png' });
 
 // And the win screen, from the suite's bomb scenario.
@@ -47,7 +47,7 @@ await page.locator('#n1').fill('Jason');
 await page.locator('#n2').fill('Foxy');
 await page.locator('#go').click();
 await page.locator('#board').waitFor();
-for (const c of [6, 1, 6, 1, 6, 1, 1, 2, 4, 2, 0, 2, 2, 3, 0, 3, 0, 3, 3]) await drop(c);
+for (const c of [3, 3, 3, 2, 3, 2, 3, 1, 6, 1, 6]) await drop(c);
 await page.evaluate(() => window.__bomb(2, 1));
 await page.waitForFunction(() => window.__state().over, null, { timeout: 8000 });
 await page.waitForTimeout(500);

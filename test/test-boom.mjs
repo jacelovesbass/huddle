@@ -2,8 +2,8 @@
 // MD actually set, rather than forcing an end state and asserting it arrived.
 //
 // The valuable test here is the second game. It builds a board by dropping
-// twenty tokens, then has PLAYER TWO bomb it, and the collapse hands PLAYER
-// ONE a five in a row. That is the whole point of the bomb: it can lose you
+// eleven tokens, then has PLAYER TWO bomb it, and the collapse hands PLAYER
+// ONE a four in a row. That is the whole point of the bomb: it can lose you
 // the game. A test that only checked a plain vertical four would have proved
 // nothing about the rule that was hard to get right.
 import { launch, open, joinCode, until, closeSheet, BASE as URL } from './helpers.mjs';
@@ -95,18 +95,20 @@ console.log(early === 0
   ? 'PASS: nothing posted to the chat on its own'
   : `FAIL: ${early} score cards arrived without anyone posting`);
 
-/* ---- Game two: player two bombs, and the collapse hands player one a five ----
+/* ---- Game two: player two bombs, and the collapse hands player one a four ----
 
-   Built so that columns 1, 2 and 3 are three deep in player two's tokens with
-   a player one token sitting on top of each, and player one already holds
-   column 0 and column 4 on the bottom row. Blowing the middle out of that
-   collapses all three of player one's tokens onto the bottom row, joining
-   column 0 to column 4. Five in a row, scored by the player who did not bomb. */
+   Column 3 reads, from the bottom: P1, P2, P1, P1, P1. Take the single P2 out
+   of it and the three above drop onto the one below, making four.
+
+   The blast is a plus, so a bomb aimed AT that P2 would take the P1 above and
+   below it as well. Aiming one column to the left instead reaches it with a
+   single arm and leaves the rest of column 3 alone. That is the shape of the
+   new blast being load bearing, which is exactly why this is the test. */
 
 await g.locator('#again').click();
 await g.locator('#board').waitFor();
 
-const SETUP = [6, 1, 6, 1, 6, 1, 1, 2, 4, 2, 0, 2, 2, 3, 0, 3, 0, 3, 3];
+const SETUP = [3, 3, 3, 2, 3, 2, 3, 1, 6, 1, 6];
 for (const c of SETUP) await drop(c);
 
 s = await state();
@@ -118,14 +120,21 @@ console.log(s.turn === 1
   ? 'PASS: it is player two\'s turn, so the bomb is theirs to regret'
   : `FAIL: it is player ${s.turn + 1}'s turn`);
 
-// Player two bombs the middle of their own block.
+// Player two bombs column 2, whose right arm reaches into column 3.
 await call('__bomb', 2, 1);
 await until(async () => (await state()).over, { timeout: 8000, every: 100 });
 
 s = await state();
-console.log(s.longest[0] === 5 && s.longest[1] === 0
-  ? 'PASS: the collapse made five in a row for player one, and wiped player two out'
-  : `FAIL: longest=${JSON.stringify(s.longest)} bottom row=[${s.grid[0].join(',')}]`);
+console.log(s.longest[0] === 4 && s.longest[1] === 1
+  ? 'PASS: the collapse made four in a row for player one, who did not bomb'
+  : `FAIL: longest=${JSON.stringify(s.longest)} column 3=[${s.grid.map(r => r[3]).join(',')}]`);
+
+// A plus takes five cells at most, and only four were occupied here. A block
+// would have taken eight, which is the change being checked.
+const gone = 11 - s.grid.flat().filter(v => v !== -1).length;
+console.log(gone === 4
+  ? 'PASS: the blast took four tokens, not the eight a block would have'
+  : `FAIL: the blast took ${gone} tokens`);
 
 console.log(s.bombs[1] === 2
   ? 'PASS: the bomb was spent, two left'
@@ -157,7 +166,7 @@ await g.locator('#post').click();
 try {
   await b.waitForSelector('.score-card', { timeout: 10000 });
   const shown = (await b.locator('.score-card').innerText()).replace(/\s+/g, ' ').trim();
-  console.log(shown.startsWith('5') && /Jason beat Foxy/.test(shown)
+  console.log(shown.startsWith('4') && /Jason beat Foxy/.test(shown)
     ? `PASS: Foxy sees the result card (${shown})`
     : `FAIL: Foxy sees "${shown}"`);
 } catch {

@@ -325,7 +325,7 @@
     <summary>How it works</summary>
     <ul>
       <li>Tap a column to drop your token. It falls to the lowest free slot. <b>Four in a row wins</b>, any direction.</li>
-      <li>You get <b>three bombs</b>. Tap BOOM, then tap any token on the board. That token and <b>all eight around it</b> are destroyed, yours included.</li>
+      <li>You get <b>three bombs</b>. Tap BOOM, then tap any token on the board. That token and the <b>four touching it</b>, up, down and either side, are destroyed. Corners survive, your own tokens do not.</li>
       <li>A bomb <b>costs your whole turn</b>, and everything above the hole falls into it.</li>
       <li><b>A four made by the collapse still counts</b>, even if it is your opponent's. If the dust settles and you both have four, the <b>longest line wins</b>. Equal longest is a dead heat.</li>
     </ul>
@@ -543,7 +543,7 @@
     if (!bombs[turn]) { say('No bombs left.'); return; }
     armed = !armed;
     board.classList.toggle('targeting', armed);
-    say(armed ? 'Tap any token. It and everything touching it go.' : '');
+    say(armed ? 'Tap a token. It and the four touching it go.' : '');
     aim(armed);
     paint();
   }
@@ -574,12 +574,14 @@
     say('');
     paint();
 
+    // A plus: the target and the four cells touching it edge on. Corners
+    // survive. Nine of forty two cells was too much board to take in one turn.
     var bomber = turn, hit = [];
-    for (var r = r0 - 1; r <= r0 + 1; r++) {
-      for (var c = c0 - 1; c <= c0 + 1; c++) {
-        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
-        if (grid[r][c]) hit.push(grid[r][c]);
-      }
+    var BLAST = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0]];
+    for (var i = 0; i < BLAST.length; i++) {
+      var c = c0 + BLAST[i][0], r = r0 + BLAST[i][1];
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      if (grid[r][c]) hit.push(grid[r][c]);
     }
 
     sfxBoom();

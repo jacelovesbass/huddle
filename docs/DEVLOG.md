@@ -15,8 +15,16 @@ row on a seven by six board with gravity, two players sharing one phone, and
 three bombs each.
 
 **The bomb is the whole game.** Tap BOOM, tap any token, and that token plus
-all eight around it are destroyed, your own included. It costs your whole turn,
-and everything above the hole falls into it.
+the four touching it edge on are destroyed, your own included. It costs your
+whole turn, and everything above the hole falls into it.
+
+**It started as a three by three block and the MD cut it to a plus**, on the
+grounds that nine of forty two cells is too much board to take in one turn.
+The shape turns out to be load bearing rather than cosmetic: a plus cannot
+reach a token sandwiched between two you want to keep, so blowing a single
+token out of a stack now means aiming at the column beside it and aiming one
+arm in. The test scenario had to be rebuilt around that, which is the clearest
+evidence the change altered the game rather than the numbers.
 
 **The rule that took the thought, and the MD set it.** A four made by the
 collapse counts, whoever it belongs to. So a bomb can hand your opponent the
@@ -26,9 +34,9 @@ rather than a boolean: a win test would have been enough for a plain drop, and
 useless for arbitrating a double.
 
 **The test is the part worth keeping.** `test/test-boom.mjs` builds a real
-board by dropping twenty tokens, has **player two** bomb it, and asserts the
-collapse gives **player one a five in a row** and wipes player two off the
-board entirely. Driving the real entry points move by move is what makes it
+board by dropping eleven tokens, has **player two** bomb it, and asserts the
+collapse gives **player one a four in a row**. It also counts the tokens taken,
+so a blast quietly growing back to a block would fail rather than pass. Driving the real entry points move by move is what makes it
 evidence. A forced end state would have proved only that the overlay renders.
 It also checks gravity still holds afterwards, because a board with a token
 floating above a hole is lying about itself.
