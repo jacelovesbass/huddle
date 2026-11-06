@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tic Tak Toe BOOM!</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  /* Palette borrowed from Pure Chat so the game does not look like a guest. */
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --line: #262b36;
+    --text: #e8eaed;
+    --muted: #8b93a3;
+    --p1: #3b82f6;
+    --p2: #f59e0b;
+    --hole: #0b0d11;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+
+  /* ---------- Start screen ---------- */
+
+  #start {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+    padding: 22px;
+    overflow-y: auto;
+  }
+
+  .wordmark {
+    text-align: center;
+    line-height: 1.05;
+  }
+  .wordmark .a { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
+  .wordmark .b {
+    display: block;
+    font-size: 46px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, #ffd56b, #f59e0b 55%, #e05a1a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline { text-align: center; color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .names { display: flex; flex-direction: column; gap: 10px; }
+  .name-row { display: flex; align-items: center; gap: 10px; }
+  .name-row .disc { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; }
+  .name-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 13px;
+    font: inherit;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .name-row input:focus { outline: none; border-color: var(--p1); }
+
+  .primary {
+    padding: 15px;
+    width: 100%;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 17px;
+    background: linear-gradient(180deg, #f8b344, #e8890f);
+    color: #241300;
+  }
+  .primary:active { transform: translateY(1px); }
+
+  details.rules {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  details.rules summary { cursor: pointer; color: var(--text); font-weight: 600; }
+  details.rules ul { margin: 10px 0 0; padding-left: 18px; }
+  details.rules li { margin-bottom: 7px; }
+  details.rules b { color: var(--text); font-weight: 600; }
+
+  /* ---------- Game screen ---------- */
+
+  #game { flex: 1; display: none; flex-direction: column; min-height: 0; padding: 10px 12px 12px; }
+
+  /* One phone, two people, so each player gets their own panel with their own
+     bombs and their own button. The active one lights up in their colour. */
+  .panel {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 11px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    opacity: .5;
+    transition: opacity .2s, border-color .2s;
+  }
+  .panel.active { opacity: 1; }
+  .panel.active.p1 { border-color: var(--p1); }
+  .panel.active.p2 { border-color: var(--p2); }
+
+  .panel .disc { width: 18px; height: 18px; border-radius: 50%; flex: 0 0 auto; }
+  .panel.p1 .disc { background: var(--p1); }
+  .panel.p2 .disc { background: var(--p2); }
+
+  .panel .name {
+    font-weight: 700;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .panel .verb { font-size: 12px; color: var(--muted); flex: 0 0 auto; }
+  .panel .pips { margin-left: auto; display: flex; gap: 3px; flex: 0 0 auto; }
+  .panel .pip { font-size: 14px; filter: grayscale(1) brightness(.45); }
+  .panel .pip.live { filter: none; }
+
+  .panel .boom {
+    flex: 0 0 auto;
+    padding: 8px 13px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .4px;
+    background: #2a1a10;
+    border: 1px solid #6b3a16;
+    color: #f8b344;
+  }
+  .panel .boom[disabled] { opacity: .3; }
+  .panel .boom.armed { background: linear-gradient(180deg, #f8b344, #e05a1a); color: #241300; border-color: #f8b344; }
+
+  #boardwrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 10px 0; }
+
+  #board {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    max-height: 100%;
+    aspect-ratio: 7 / 6;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 2.2%;
+    overflow: hidden;
+  }
+  #board.shake { animation: shake .4s; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    15% { transform: translate(-5px, 3px) rotate(-.5deg); }
+    35% { transform: translate(5px, -3px) rotate(.5deg); }
+    55% { transform: translate(-4px, -2px); }
+    75% { transform: translate(3px, 2px); }
+  }
+
+  #cells { position: absolute; inset: 2.2%; }
+
+  .hole, .tok, .aim {
+    position: absolute;
+    width: 14.2857%;
+    height: 16.6667%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hole > i, .tok > i, .aim > i {
+    display: block;
+    width: 84%;
+    height: 84%;
+    border-radius: 50%;
+  }
+  .hole > i { background: var(--hole); box-shadow: inset 0 2px 5px rgba(0,0,0,.65); }
+
+  .tok { transition: top .3s cubic-bezier(.35,0,.7,.3); z-index: 2; }
+  .tok > i { box-shadow: inset 0 -3px 7px rgba(0,0,0,.33), inset 0 3px 5px rgba(255,255,255,.3); }
+  .tok.p1 > i { background: var(--p1); }
+  .tok.p2 > i { background: var(--p2); }
+  .tok.fall { transition: top .34s cubic-bezier(.5,0,.75,.35); }
+  .tok.win { z-index: 7; }
+  .tok.win > i { animation: pulse .8s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { transform: scale(1.04); box-shadow: 0 0 0 3px #fff, 0 0 14px 4px rgba(255,255,255,.45); }
+    50% { transform: scale(1.12); box-shadow: 0 0 0 3px #fff, 0 0 26px 10px rgba(255,255,255,.75); }
+  }
+  .tok.boom { transition: all .26s ease-out; transform: scale(1.7); opacity: 0; z-index: 4; }
+
+  /* Column tap targets, drawn over the holes and under the tokens. */
+  .col {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 14.2857%;
+    z-index: 3;
+    border-radius: 8px;
+  }
+  .col.full { cursor: not-allowed; }
+  #board:not(.targeting) .col:active { background: rgba(255,255,255,.07); }
+  .col.nope { animation: nope .3s; }
+  @keyframes nope {
+    0%,100% { transform: translateX(0); }
+    30% { transform: translateX(-4px); }
+    70% { transform: translateX(4px); }
+  }
+
+  /* Bomb targeting */
+  #board.targeting .col { display: none; }
+  .aim { z-index: 5; }
+  .aim > i {
+    border: 2px dashed rgba(255,255,255,.55);
+    background: rgba(240,120,30,.18);
+    animation: breathe 1.1s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+
+  .flash {
+    position: absolute;
+    border-radius: 50%;
+    z-index: 6;
+    pointer-events: none;
+    background: radial-gradient(circle, #fff 0%, #ffd56b 28%, #f0701e 52%, rgba(240,90,20,0) 72%);
+    animation: flash .45s ease-out forwards;
+  }
+  @keyframes flash {
+    from { transform: scale(.25); opacity: 1; }
+    to { transform: scale(1.5); opacity: 0; }
+  }
+
+  #hint { text-align: center; font-size: 12.5px; color: var(--muted); margin: 8px 2px 0; min-height: 17px; }
+
+  /* ---------- End ----------
+     A sheet at the bottom rather than a full cover, and the board lifts and
+     shrinks to sit above it. You have just made a line; you should be able to
+     watch it pulse while you read who won. */
+
+  #game.ended #boardwrap { align-items: flex-start; padding-top: 0; }
+  #game.ended #board { transform: scale(.8); transform-origin: top center; transition: transform .45s ease; }
+
+  #over {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: flex-end;
+    z-index: 20;
+    text-align: center;
+    background: linear-gradient(rgba(10,12,16,0) 0%, rgba(10,12,16,0) 40%, rgba(10,12,16,.6) 52%, rgba(10,12,16,.93) 62%);
+    animation: fadein .3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  #over.on { display: flex; }
+  #over .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    margin: 12px;
+    padding: 20px 18px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 11px;
+  }
+  #over .big { font-size: 30px; font-weight: 900; line-height: 1.1; }
+  #over .sub { color: var(--muted); font-size: 14.5px; margin: 0; }
+  #over .acts { display: flex; flex-direction: column; gap: 9px; width: 100%; }
+  #over .ghost {
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: #10131a;
+    font-weight: 600;
+  }
+  #over .fine { font-size: 12px; color: var(--muted); margin: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<!-- ===================== Start ===================== -->
+<div id="start">
+  <div class="wordmark">
+    <span class="a">TIC TAK TOE</span>
+    <span class="b">BOOM!</span>
+  </div>
+  <p class="tagline">Four in a row. Two players, one phone. Three bombs each.</p>
+
+  <div class="names">
+    <div class="name-row">
+      <span class="disc" style="background:var(--p1)"></span>
+      <label class="sr" for="n1">Player one</label>
+      <input id="n1" maxlength="14" placeholder="Player 1" autocomplete="off">
+    </div>
+    <div class="name-row">
+      <span class="disc" style="background:var(--p2)"></span>
+      <label class="sr" for="n2">Player two</label>
+      <input id="n2" maxlength="14" placeholder="Player 2" autocomplete="off">
+    </div>
+  </div>
+
+  <button class="primary" id="go">Start</button>
+
+  <details class="rules">
+    <summary>How it works</summary>
+    <ul>
+      <li>Tap a column to drop your token. It falls to the lowest free slot. <b>Four in a row wins</b>, any direction.</li>
+      <li>You get <b>three bombs</b>. Tap BOOM, then tap any token on the board. That token and <b>all eight around it</b> are destroyed, yours included.</li>
+      <li>A bomb <b>costs your whole turn</b>, and everything above the hole falls into it.</li>
+      <li><b>A four made by the collapse still counts</b>, even if it is your opponent's. If the dust settles and you both have four, the <b>longest line wins</b>. Equal longest is a dead heat.</li>
+    </ul>
+  </details>
+</div>
+
+<!-- ===================== Game ===================== -->
+<div id="game">
+  <div class="panel p2" id="panel2">
+    <span class="disc"></span>
+    <span class="name" id="name2"></span>
+    <span class="verb" id="verb2"></span>
+    <span class="pips" id="pips2"></span>
+    <button class="boom" id="boom2">BOOM</button>
+  </div>
+
+  <div id="boardwrap">
+    <div id="board">
+      <div id="cells"></div>
+    </div>
+  </div>
+
+  <div class="panel p1" id="panel1">
+    <span class="disc"></span>
+    <span class="name" id="name1"></span>
+    <span class="verb" id="verb1"></span>
+    <span class="pips" id="pips1"></span>
+    <button class="boom" id="boom1">BOOM</button>
+  </div>
+
+  <p id="hint"></p>
+</div>
+
+<!-- ===================== End ===================== -->
+<div id="over">
+  <div class="card">
+    <div class="big" id="overBig"></div>
+    <p class="sub" id="overSub"></p>
+    <div class="acts">
+      <button class="primary" id="again">Rematch</button>
+      <button class="ghost" id="post">Post the result to the chat</button>
+    </div>
+    <p class="fine">Posting closes the game and drops the result into the conversation.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var COLS = 7, ROWS = 6, NEED = 4, BOMBS = 3;
+
+  // grid[r][c] holds a token object or null. r = 0 is the BOTTOM row, which
+  // makes gravity the direction of decreasing r and saves inverting it in
+  // every loop. Only the renderer cares which way up the screen is.
+  var grid, tokens, turn, bombs, armed, locked, nextId, moves;
+  var names = ['Player 1', 'Player 2'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var board = $('board'), cells = $('cells');
+
+  /* ---------------- Sound -------------------------------------------------
+     Web Audio, built on the first tap. There is no network in the sandbox,
+     so every sound is synthesised rather than loaded. */
+
+  var ac = null;
+  function audio() {
+    if (!ac) {
+      var C = window.AudioContext || window.webkitAudioContext;
+      if (C) ac = new C();
+    }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+
+  function tone(freq, to, dur, type, vol) {
+    var a = audio(); if (!a) return;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, a.currentTime + dur);
+    g.gain.setValueAtTime(vol == null ? 0.07 : vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur + 0.02);
+  }
+
+  function sfxDrop() { tone(420, 180, 0.12, 'square', 0.05); }
+  function sfxLand() { tone(140, 90, 0.09, 'sine', 0.09); }
+
+  function sfxBoom() {
+    var a = audio(); if (!a) return;
+    var n = a.sampleRate * 0.55, buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.2);
+    var s = a.createBufferSource(); s.buffer = buf;
+    var lp = a.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(1400, a.currentTime);
+    lp.frequency.exponentialRampToValueAtTime(90, a.currentTime + 0.5);
+    var g = a.createGain(); g.gain.setValueAtTime(0.5, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.55);
+    s.connect(lp); lp.connect(g); g.connect(a.destination);
+    s.start();
+    tone(70, 34, 0.45, 'sine', 0.3);
+  }
+
+  function sfxWin() {
+    [0, 120, 240, 420].forEach(function (ms, i) {
+      setTimeout(function () { tone([523, 659, 784, 1047][i], null, 0.3, 'triangle', 0.08); }, ms);
+    });
+  }
+
+  function sfxTie() {
+    [0, 160].forEach(function (ms, i) { setTimeout(function () { tone([330, 262][i], null, 0.34, 'triangle', 0.08); }, ms); });
+  }
+
+  /* ---------------- Board model ------------------------------------------ */
+
+  function reset() {
+    grid = [];
+    for (var r = 0; r < ROWS; r++) { grid.push([]); for (var c = 0; c < COLS; c++) grid[r].push(null); }
+    tokens = [];
+    turn = 0; bombs = [BOMBS, BOMBS]; armed = false; locked = false; nextId = 1; moves = 0;
+    cells.innerHTML = '';
+
+    // The holes are static scenery, drawn once behind everything.
+    for (var hr = 0; hr < ROWS; hr++) {
+      for (var hc = 0; hc < COLS; hc++) {
+        var h = document.createElement('div');
+        h.className = 'hole';
+        place(h, hc, hr);
+        h.innerHTML = '<i></i>';
+        cells.appendChild(h);
+      }
+    }
+    for (var cc = 0; cc < COLS; cc++) cells.appendChild(colTarget(cc));
+
+    board.classList.remove('targeting');
+    $('game').classList.remove('ended');
+    $('over').classList.remove('on');
+    paint();
+  }
+
+  // Percentage positioning, so the board scales to whatever width it is given
+  // and a row change can simply be transitioned.
+  function place(el, c, r) {
+    el.style.left = (c * 100 / COLS) + '%';
+    el.style.top = ((ROWS - 1 - r) * 100 / ROWS) + '%';
+  }
+
+  function colTarget(c) {
+    var d = document.createElement('div');
+    d.className = 'col';
+    d.dataset.c = c;
+    d.style.left = (c * 100 / COLS) + '%';
+    d.addEventListener('click', function () { drop(c); });
+    return d;
+  }
+
+  function lowestFree(c) {
+    for (var r = 0; r < ROWS; r++) if (!grid[r][c]) return r;
+    return -1;
+  }
+
+  function addToken(p, c, r) {
+    var el = document.createElement('div');
+    el.className = 'tok p' + (p + 1);
+    el.innerHTML = '<i></i>';
+    var t = { id: nextId++, p: p, c: c, r: r, el: el };
+    el.addEventListener('click', function (e) {
+      if (!armed) return;
+      e.stopPropagation();
+      detonate(t.c, t.r);
+    });
+    // Start one row above the board and fall in, which is cheaper than
+    // animating a real trajectory and reads the same.
+    place(el, c, ROWS);
+    cells.appendChild(el);
+    grid[r][c] = t;
+    tokens.push(t);
+    void el.offsetHeight; // Commit the start position, or the browser batches
+    requestAnimationFrame(function () { place(el, c, r); }); // both and nothing falls
+    return t;
+  }
+
+  /* ---------------- Turns ------------------------------------------------- */
+
+  function drop(c) {
+    if (locked || armed) return;
+    var r = lowestFree(c);
+    if (r < 0) {
+      var t = cells.querySelector('.col[data-c="' + c + '"]');
+      t.classList.add('nope');
+      setTimeout(function () { t.classList.remove('nope'); }, 320);
+      say('That column is full.');
+      return;
+    }
+    locked = true;
+    sfxDrop();
+    var tok = addToken(turn, c, r);
+    moves++;
+    setTimeout(function () {
+      sfxLand();
+      // A drop can only ever complete a line for the player who made it, so
+      // there is nothing to arbitrate here. The bomb path is the messy one.
+      var run = longest(turn);
+      if (run.len >= NEED) return finish(turn, run);
+      if (full()) return finish(-1, null);
+      locked = false;
+      hand();
+    }, 330);
+  }
+
+  function arm() {
+    if (locked) return;
+    if (!bombs[turn]) { say('No bombs left.'); return; }
+    armed = !armed;
+    board.classList.toggle('targeting', armed);
+    say(armed ? 'Tap any token. It and everything touching it go.' : '');
+    aim(armed);
+    paint();
+  }
+
+  // A ring on every token that can be targeted, so it is obvious the board is
+  // waiting for a different kind of tap.
+  function aim(on) {
+    Array.prototype.forEach.call(cells.querySelectorAll('.aim'), function (n) { n.remove(); });
+    if (!on) return;
+    tokens.forEach(function (t) {
+      var a = document.createElement('div');
+      a.className = 'aim';
+      a.innerHTML = '<i></i>';
+      place(a, t.c, t.r);
+      a.addEventListener('click', function (e) { e.stopPropagation(); detonate(t.c, t.r); });
+      cells.appendChild(a);
+    });
+  }
+
+  function detonate(c0, r0) {
+    if (locked || !armed || !bombs[turn]) return;
+    locked = true;
+    armed = false;
+    board.classList.remove('targeting');
+    aim(false);
+    bombs[turn]--;
+    moves++;
+    say('');
+    paint();
+
+    var bomber = turn, hit = [];
+    for (var r = r0 - 1; r <= r0 + 1; r++) {
+      for (var c = c0 - 1; c <= c0 + 1; c++) {
+        if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+        if (grid[r][c]) hit.push(grid[r][c]);
+      }
+    }
+
+    sfxBoom();
+    board.classList.add('shake');
+    setTimeout(function () { board.classList.remove('shake'); }, 420);
+
+    var f = document.createElement('div');
+    f.className = 'flash';
+    f.style.width = (3 * 100 / COLS) + '%';
+    f.style.height = (3 * 100 / ROWS) + '%';
+    f.style.left = ((c0 - 1) * 100 / COLS) + '%';
+    f.style.top = ((ROWS - 1 - (r0 + 1)) * 100 / ROWS) + '%';
+    cells.appendChild(f);
+    setTimeout(function () { f.remove(); }, 470);
+
+    hit.forEach(function (t) {
+      grid[t.r][t.c] = null;
+      tokens.splice(tokens.indexOf(t), 1);
+      t.el.classList.add('boom');
+      setTimeout(function () { t.el.remove(); }, 280);
+    });
+
+    setTimeout(function () { collapse(bomber); }, 290);
+  }
+
+  // Everything above a hole falls into it. Order within a column is preserved,
+  // so a column is just compacted downwards.
+  function collapse(bomber) {
+    for (var c = 0; c < COLS; c++) {
+      var stack = [];
+      for (var r = 0; r < ROWS; r++) { if (grid[r][c]) stack.push(grid[r][c]); grid[r][c] = null; }
+      for (var i = 0; i < stack.length; i++) {
+        var t = stack[i];
+        grid[i][c] = t;
+        if (t.r !== i) {
+          t.r = i;
+          t.el.classList.add('fall');
+          place(t.el, c, i);
+        }
+      }
+    }
+
+    setTimeout(function () {
+      tokens.forEach(function (t) { t.el.classList.remove('fall'); });
+      judge(bomber);
+    }, 380);
+  }
+
+  /* The rule the MD set: a four made by the collapse counts, whoever it
+     belongs to. If both players are left holding four, the longer line wins,
+     and an equal longest is a dead heat. */
+  function judge(bomber) {
+    var a = longest(0), b = longest(1);
+    var aWin = a.len >= NEED, bWin = b.len >= NEED;
+
+    if (aWin && bWin) {
+      if (a.len > b.len) return finish(0, a);
+      if (b.len > a.len) return finish(1, b);
+      return finish(-2, { a: a, b: b, bomber: bomber });
+    }
+    if (aWin) return finish(0, a);
+    if (bWin) return finish(1, b);
+    if (full()) return finish(-1, null);
+    locked = false;
+    hand();
+  }
+
+  function full() { return tokens.length >= COLS * ROWS; }
+
+  /* ---------------- Lines ------------------------------------------------- */
+
+  var DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
+
+  // The longest run anywhere on the board for one player, with the cells that
+  // make it up so they can be lit. Used for the win test and for arbitrating
+  // a double, which is why it returns a length rather than a boolean.
+  function longest(p) {
+    var best = { len: 0, cellsIn: [] };
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var t = grid[r][c];
+        if (!t || t.p !== p) continue;
+        for (var d = 0; d < DIRS.length; d++) {
+          var dc = DIRS[d][0], dr = DIRS[d][1];
+          // Only count from the start of a run, so each run is measured once.
+          var pr = r - dr, pc = c - dc;
+          if (pr >= 0 && pr < ROWS && pc >= 0 && pc < COLS && grid[pr][pc] && grid[pr][pc].p === p) continue;
+          var run = [];
+          var rr = r, cc = c;
+          while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && grid[rr][cc] && grid[rr][cc].p === p) {
+            run.push(grid[rr][cc]); rr += dr; cc += dc;
+          }
+          if (run.length > best.len) best = { len: run.length, cellsIn: run };
+        }
+      }
+    }
+    return best;
+  }
+
+  /* ---------------- Chrome ------------------------------------------------ */
+
+  function paint() {
+    for (var p = 0; p < 2; p++) {
+      var n = p + 1, mine = p === turn;
+      $('name' + n).textContent = names[p];
+      $('panel' + n).classList.toggle('active', mine && !over());
+      $('verb' + n).textContent = !mine || over() ? '' : (armed ? 'pick a target' : 'to play');
+
+      var pips = '';
+      for (var i = 0; i < BOMBS; i++) pips += '<span class="pip' + (i < bombs[p] ? ' live' : '') + '">💣</span>';
+      $('pips' + n).innerHTML = pips;
+
+      var btn = $('boom' + n);
+      btn.disabled = !mine || !bombs[p] || locked;
+      btn.classList.toggle('armed', mine && armed);
+    }
+  }
+
+  function over() { return $('over').classList.contains('on') || $('game').classList.contains('ended'); }
+
+  function hand() { turn = 1 - turn; paint(); }
+  function say(s) { $('hint').textContent = s; }
+
+  function finish(winner, run) {
+    locked = true;
+    armed = false;
+    board.classList.remove('targeting');
+    aim(false);
+    $('game').classList.add('ended');
+    paint();
+
+    var big = $('overBig'), sub = $('overSub');
+
+    if (winner === -1) {
+      sfxTie();
+      big.textContent = 'Board full';
+      big.style.color = 'var(--text)';
+      sub.textContent = 'Nobody got four. ' + moves + ' moves, and no room left.';
+      result = { score: 0, detail: names[0] + ' and ' + names[1] + ' filled the board, no four' };
+    } else if (winner === -2) {
+      sfxTie();
+      var len = run.a.len;
+      big.textContent = 'Dead heat';
+      big.style.color = 'var(--text)';
+      sub.textContent = 'The collapse gave you both ' + len + ' in a row. Equal longest, so nobody takes it.';
+      light(run.a.cellsIn); light(run.b.cellsIn);
+      result = { score: len, detail: names[0] + ' and ' + names[1] + ' both got ' + len + ' in a row, dead heat' };
+    } else {
+      sfxWin();
+      big.textContent = names[winner] + ' wins';
+      big.style.color = winner ? 'var(--p2)' : 'var(--p1)';
+      var spare = bombs[winner];
+      sub.textContent = run.len + ' in a row, ' + moves + ' moves, ' +
+        (spare === BOMBS ? 'without using a bomb.'
+          : spare === 0 ? 'and every bomb spent.'
+          : spare + (spare === 1 ? ' bomb' : ' bombs') + ' still in hand.');
+      light(run.cellsIn);
+      result = {
+        score: run.len,
+        detail: names[winner] + ' beat ' + names[1 - winner] + ', ' + run.len +
+          ' in a row, ' + bombs[winner] + ' bombs left'
+      };
+    }
+
+    setTimeout(function () { $('over').classList.add('on'); }, 820);
+  }
+
+  function light(list) { list.forEach(function (t) { t.el.classList.add('win'); }); }
+
+  var result = null;
+
+  /* ---------------- The host ----------------------------------------------
+     Three messages out, one in. Everything here is deliberately small: the
+     sandbox is the only thing between this file and the conversation. */
+
+  parent.postMessage({ type: 'ready' }, '*');
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'host' && e.data.name) {
+      // Prefill whoever's chat this is, unless they have already typed.
+      if (!$('n1').value) $('n1').value = String(e.data.name).slice(0, 14);
+    }
+  });
+
+  /* ---------------- Wiring ------------------------------------------------ */
+
+  $('go').addEventListener('click', function () {
+    audio();
+    names[0] = ($('n1').value || 'Player 1').trim().slice(0, 14);
+    names[1] = ($('n2').value || 'Player 2').trim().slice(0, 14);
+    if (names[0] === names[1]) names[1] = names[1] + ' (2)';
+    $('start').style.display = 'none';
+    $('game').style.display = 'flex';
+    reset();
+    say('Tap a column to drop.');
+  });
+
+  $('boom1').addEventListener('click', arm);
+  $('boom2').addEventListener('click', arm);
+
+  // Tapping the board away from a token while armed means "changed my mind".
+  board.addEventListener('click', function () { if (armed) arm(); });
+
+  $('again').addEventListener('click', function () { reset(); say('Tap a column to drop.'); });
+
+  $('post').addEventListener('click', function () {
+    if (!result) return;
+    parent.postMessage({ type: 'score', score: result.score, detail: result.detail }, '*');
+  });
+
+  /* ---------------- Test hooks --------------------------------------------
+     A real game driven move by move is a far better test than a forced end
+     state, so these are the same entry points a finger uses. */
+
+  window.__drop = function (c) { locked = false; armed = false; drop(c); };
+  window.__bomb = function (c, r) { locked = false; armed = true; detonate(c, r); };
+  window.__state = function () {
+    return {
+      turn: turn, names: names, bombs: bombs.slice(), moves: moves, locked: locked,
+      over: $('over').classList.contains('on'), result: result,
+      longest: [longest(0).len, longest(1).len],
+      grid: grid.map(function (row) { return row.map(function (t) { return t ? t.p : -1; }); })
+    };
+  };
+})();
+</script>
+</body>
+</html>

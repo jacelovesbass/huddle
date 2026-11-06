@@ -8,6 +8,47 @@ that would otherwise have to be rediscovered.
 
 ---
 
+## 2026-11-07 — Tic Tak Toe BOOM! (later the same day)
+
+The first game written for this app rather than imported into it. Four in a
+row on a seven by six board with gravity, two players sharing one phone, and
+three bombs each.
+
+**The bomb is the whole game.** Tap BOOM, tap any token, and that token plus
+all eight around it are destroyed, your own included. It costs your whole turn,
+and everything above the hole falls into it.
+
+**The rule that took the thought, and the MD set it.** A four made by the
+collapse counts, whoever it belongs to. So a bomb can hand your opponent the
+game. If the dust settles and both players hold four, the **longer line wins**,
+and an equal longest is a dead heat. That is why `longest()` returns a length
+rather than a boolean: a win test would have been enough for a plain drop, and
+useless for arbitrating a double.
+
+**The test is the part worth keeping.** `test/test-boom.mjs` builds a real
+board by dropping twenty tokens, has **player two** bomb it, and asserts the
+collapse gives **player one a five in a row** and wipes player two off the
+board entirely. Driving the real entry points move by move is what makes it
+evidence. A forced end state would have proved only that the overlay renders.
+It also checks gravity still holds afterwards, because a board with a token
+floating above a hole is lying about itself.
+
+**Found by reading the host, not by guessing.** `games.jsx` closes the player
+the instant a score is posted. So the result cannot post itself: the win screen
+comes first, offering Rematch or Post, and the test asserts nothing reaches the
+chat until somebody asks. The board also lifts and shrinks when the game ends
+so the winning line stays visible behind the sheet, which only came up because
+the first screenshot had the overlay sitting squarely on top of the five in a
+row that had just been made.
+
+**Four defects the screenshots caught and the suite did not**, which is the
+project's usual pattern: a player name truncated to "Jas...", a bomb pip that
+did not burn down until the turn handed over, the end sheet covering the
+winning line, and a heavy dim exactly where a four usually sits. All four were
+visible in a picture and invisible to an assertion.
+
+---
+
 ## 2026-11-07 — Tidying up
 
 Nothing new for a user. A day of making the next change cheaper than the last.
