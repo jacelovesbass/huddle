@@ -357,3 +357,19 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 /* A kept GIF is marked, so the shelf you curated is distinguishable from
    everything that has merely gone past in the conversation. */
 .gif-cell.kept { border-color: var(--line); box-shadow: inset 0 0 0 2px rgba(246, 196, 82, .55); }
+
+/* Sits above everything, including the safe area, because it matters more
+   than whatever it covers. */
+.update {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  width: 100%;
+  border-radius: 0;
+  padding-block: calc(9px + env(safe-area-inset-top)) 9px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--mine);
+}

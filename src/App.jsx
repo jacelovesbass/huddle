@@ -36,6 +36,50 @@ const history_ = {
   drop: id => store.set('rooms', JSON.stringify(history_.all().filter(x => x.id !== id))),
 };
 
+const BUILD = import.meta.env.VITE_BUILD || 'dev';
+
+/**
+ * An installed web app caches hard, so someone can sit on yesterday's copy for
+ * days without knowing. Poll a tiny file that the deploy stamps with the build
+ * it published, and offer a reload when it moves. Reloading via a changed URL,
+ * because a plain reload can be served the cached page again.
+ */
+function UpdateBanner() {
+  const [stale, setStale] = useState(false);
+
+  useEffect(() => {
+    if (BUILD === 'dev') return;
+    let alive = true;
+
+    const check = async () => {
+      if (document.hidden) return;
+      try {
+        const r = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const { build } = await r.json();
+        if (alive && build && build !== BUILD) setStale(true);
+      } catch { /* offline, try again later */ }
+    };
+
+    check();
+    const timer = setInterval(check, 120000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, []);
+
+  if (!stale) return null;
+  return (
+    <button className="update" onClick={() => {
+      location.replace(`${location.pathname}?v=${Date.now()}${location.hash}`);
+    }}>
+      A newer version is ready. Tap to update.
+    </button>
+  );
+}
+
 export default function App() {
   const [name, setName] = useState(store.get('name'));
   const [room, setRoom] = useState(null);
@@ -64,10 +108,14 @@ export default function App() {
   }, []);
 
   if (booting) return <div className="center muted">Loading…</div>;
-  if (!name) return <NameGate onDone={n => { store.set('name', n); setName(n); }} />;
-  if (!room) return <RoomGate onDone={r => { store.set('roomId', r.id); history_.add(r); setRoom(r); }} />;
 
-  return <Chat name={name} room={room} onLeave={() => { store.set('roomId', ''); setRoom(null); }} />;
+  const screen = !name
+    ? <NameGate onDone={n => { store.set('name', n); setName(n); }} />
+    : !room
+      ? <RoomGate onDone={r => { store.set('roomId', r.id); history_.add(r); setRoom(r); }} />
+      : <Chat name={name} room={room} onLeave={() => { store.set('roomId', ''); setRoom(null); }} />;
+
+  return <><UpdateBanner />{screen}</>;
 }
 
 function NameGate({ onDone }) {

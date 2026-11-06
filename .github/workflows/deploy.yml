@@ -23,9 +23,12 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # A file the running app can poll to notice it is out of date.
+      - run: echo "{\"build\":\"${GITHUB_SHA}\"}" > public/version.json
       - run: npm run build
         env:
           BASE_PATH: /purechat/
+          VITE_BUILD: ${{ github.sha }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
