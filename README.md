@@ -8,7 +8,8 @@ own GIFs, your own packs that you can take away with you.
 **Docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [docs/DEVLOG.md](docs/DEVLOG.md) · [docs/DECISIONS.md](docs/DECISIONS.md) ·
 [docs/PROPOSAL.md](docs/PROPOSAL.md) ·
-[PACK_FORMAT.md](PACK_FORMAT.md)
+[PACK_FORMAT.md](PACK_FORMAT.md) ·
+[GAME_FORMAT.md](GAME_FORMAT.md) · [src/tools/README.md](src/tools/README.md)
 
 ## Getting it running
 

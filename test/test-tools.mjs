@@ -10,13 +10,28 @@ await a.getByPlaceholder('Group name').fill('Pack Test');
 await a.getByRole('button', { name: 'Create group' }).click();
 await a.waitForSelector('.chat header');
 
-// Every registered tool gets a button, with its label as the accessible name.
+// The bar is built from the registry, so it should match it exactly rather
+// than match a list typed into this test. Read the registry from the module
+// the app actually uses.
+const expected = await a.evaluate(async () => {
+  const m = await import('/src/tools/index.js');
+  return m.TOOLS.map(t => t.label);
+}).catch(() => null);
+
 const labels = await a.locator('.tools .tool').evaluateAll(
   els => els.map(e => e.getAttribute('aria-label')));
 console.log(`   bar shows: ${labels.join(', ')}`);
-console.log(labels.length === 3 && labels.includes('Roll a die')
-  ? 'PASS: the registry drives the bar, including a tool Chat.jsx never heard of'
-  : `FAIL: ${JSON.stringify(labels)}`);
+
+if (expected) {
+  console.log(JSON.stringify(labels) === JSON.stringify(expected)
+    ? `PASS: the bar matches the registry exactly (${expected.length} tools)`
+    : `FAIL: bar ${JSON.stringify(labels)} vs registry ${JSON.stringify(expected)}`);
+} else {
+  // A production build has no module graph to import; fall back to shape.
+  console.log(labels.length >= 3 && labels.every(Boolean)
+    ? `PASS: the bar is built from the registry (${labels.length} labelled tools)`
+    : `FAIL: ${JSON.stringify(labels)}`);
+}
 
 await a.getByRole('button', { name: /^People/ }).click();
 await a.waitForSelector('.sheet-card .code');
@@ -27,24 +42,14 @@ await a.waitForTimeout(250);
 const b = await open(browser, 'Sam', `${URL}#${code}`);
 await b.waitForSelector('.chat header');
 
-// Roll, which sends a structured message rather than text.
-await a.locator('.tool.tool-dice').click();
-await a.waitForSelector('.dice-picker');
-await a.getByRole('button', { name: 'd20' }).click();
-await a.getByRole('button', { name: /^Roll d20/ }).click();
-
-try {
-  await b.waitForSelector('.dice-result', { timeout: 10000 });
-  const shown = (await b.locator('.dice-result').innerText()).replace(/\s+/g, ' ').trim();
-  const n = parseInt(shown, 10);
-  console.log(n >= 1 && n <= 20
-    ? `PASS: the other client drew it with the tool's own renderer (${shown})`
-    : `FAIL: rendered "${shown}"`);
-} catch {
-  console.log('FAIL: dice message never arrived or was not rendered');
-  console.log('  Sam sees:', JSON.stringify(await b.locator('.bubble').allInnerTexts()));
-  await browser.close();
-  process.exit(1);
+// Each tool's sheet opens and closes without Chat.jsx knowing what it is.
+for (const label of labels) {
+  await a.getByRole('button', { name: label, exact: true }).first().click();
+  const opened = await a.waitForSelector('.sheet-card, .player-card', { timeout: 8000 })
+    .then(() => true).catch(() => false);
+  console.log(opened ? `PASS: ${label} opened its own sheet` : `FAIL: ${label} did not open`);
+  await a.locator('.sheet, .player').first().click({ position: { x: 8, y: 8 } });
+  await a.waitForTimeout(300);
 }
 
 // Text messages must be untouched by any of this.

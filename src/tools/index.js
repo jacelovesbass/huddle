@@ -5,9 +5,9 @@
 // rather than a growing switch statement.
 import { emojiTool } from './emoji.jsx';
 import { gifTool } from './gif.jsx';
-import { diceTool } from './dice.jsx';
+import { gamesTool } from './games.jsx';
 
-export const TOOLS = [emojiTool, gifTool, diceTool];
+export const TOOLS = [emojiTool, gifTool, gamesTool];
 
 /** Renderers contributed by tools, keyed by messages.kind. */
 export const RENDERERS = Object.fromEntries(

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tile Tap</title>
+<style>
+  :root { --bg:#12141a; --tile:#232834; --hit:#2f6df6; --text:#e8eaed; --muted:#8b93a3; }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;padding:16px;-webkit-user-select:none;user-select:none;touch-action:manipulation;
+  }
+  h1{margin:0;font-size:20px;letter-spacing:-.3px}
+  .hud{display:flex;gap:18px;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+  .hud b{color:var(--text);font-size:17px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:min(86vw,300px);aspect-ratio:1}
+  .cell{background:var(--tile);border:0;border-radius:12px;cursor:pointer;transition:transform .05s}
+  .cell.on{background:var(--hit)}
+  .cell:active{transform:scale(.95)}
+  button.go{
+    padding:12px 22px;border:0;border-radius:11px;background:var(--hit);color:#fff;
+    font:inherit;font-weight:600;cursor:pointer
+  }
+  .msg{color:var(--muted);font-size:14px;min-height:20px;text-align:center}
+</style>
+</head>
+<body>
+  <h1 id="title">Tile Tap</h1>
+  <div class="hud"><span>Score <b id="score">0</b></span><span>Time <b id="time">20</b></span></div>
+  <div class="grid" id="grid"></div>
+  <p class="msg" id="msg">Tap the blue tile. Twenty seconds.</p>
+  <button class="go" id="go">Start</button>
+
+<script>
+  // A deliberately small single-file game. No network, no storage: it talks to
+  // the chat only through postMessage, which is all the sandbox allows.
+  var LENGTH = 20;
+  var grid = document.getElementById('grid');
+  var scoreEl = document.getElementById('score');
+  var timeEl = document.getElementById('time');
+  var msg = document.getElementById('msg');
+  var go = document.getElementById('go');
+
+  var cells = [];
+  for (var i = 0; i < 9; i++) {
+    var b = document.createElement('button');
+    b.className = 'cell';
+    b.dataset.i = i;
+    b.addEventListener('click', tap);
+    grid.appendChild(b);
+    cells.push(b);
+  }
+
+  var live = false, score = 0, left = LENGTH, active = -1, timer = null;
+
+  function light() {
+    if (active >= 0) cells[active].classList.remove('on');
+    var next;
+    do { next = Math.floor(Math.random() * 9); } while (next === active);
+    active = next;
+    cells[active].classList.add('on');
+  }
+
+  function tap(e) {
+    if (!live) return;
+    if (Number(e.currentTarget.dataset.i) === active) {
+      score++;
+      scoreEl.textContent = score;
+      light();
+    } else if (score > 0) {
+      score--;
+      scoreEl.textContent = score;
+    }
+  }
+
+  function start() {
+    live = true; score = 0; left = LENGTH;
+    scoreEl.textContent = '0';
+    timeEl.textContent = LENGTH;
+    msg.textContent = 'Go';
+    go.style.display = 'none';
+    light();
+    timer = setInterval(function () {
+      left--;
+      timeEl.textContent = left;
+      if (left <= 0) stop();
+    }, 1000);
+  }
+
+  function stop() {
+    live = false;
+    clearInterval(timer);
+    if (active >= 0) cells[active].classList.remove('on');
+    active = -1;
+    msg.textContent = 'Finished. Score ' + score + '.';
+    go.textContent = 'Play again';
+    go.style.display = '';
+    // Hand the result to the chat. The host decides what to do with it.
+    parent.postMessage({ type: 'score', score: score, detail: LENGTH + 's' }, '*');
+  }
+
+  go.addEventListener('click', start);
+
+  // Say hello, so the host can tell us who is playing.
+  parent.postMessage({ type: 'ready' }, '*');
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'host' && e.data.name) {
+      document.getElementById('title').textContent = 'Tile Tap, ' + e.data.name;
+    }
+  });
+
+  // A hook the tests use to finish instantly instead of waiting 20 seconds.
+  window.__finishNow = function (n) { score = n; stop(); };
+</script>
+</body>
+</html>

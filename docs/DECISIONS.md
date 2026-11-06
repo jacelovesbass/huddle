@@ -66,6 +66,25 @@ the name is one the suites use, the room is under two hours old, and it is not
 on the keep list. Deleting a real conversation is far worse than leaving a test
 room behind.
 
+## 10. A game is one HTML file, run in an opaque sandbox
+**2026-11-07.** Single-file HTML is what an AI can produce in one go and what a
+person can pass around. It runs in an iframe with `sandbox="allow-scripts"` and
+**never** `allow-same-origin`, which puts it in an opaque origin: no cookies,
+no storage, no DOM access to the page, no Supabase client, no route to the
+database or a single message.
+
+These games are written by language models and handed between friends, so the
+correct assumption is that the HTML is hostile and the sandbox is the only
+thing protecting the conversation. The host API is three messages wide for the
+same reason: everything added to it is something a hostile game can try to use.
+
+## 11. Storing a game is not the same as storing media
+**2026-11-07.** Decision 4 says link, do not store. A game is text, compresses,
+is installed deliberately by the group rather than being somebody's personal
+photo, and loads once per group rather than per message. So a game may carry
+its HTML. The manifest still supports `url`, so a hosted game costs nothing and
+the app cannot tell the difference.
+
 ---
 
 ## Open, and deliberately not decided
