@@ -546,7 +546,7 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
                onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) fromPhotos(f); }} />
 
         <div className="or">or paste a link</div>
-        <p className="muted hint">On giphy.com, open the GIF on its own page and copy the address bar.</p>
+        <p className="muted hint">In the GIPHY app: tap a GIF, Share, Copy Link. On giphy.com in a browser, open the GIF on its own page and copy the address bar.</p>
         <input autoFocus value={raw} onChange={e => setRaw(e.target.value)}
                placeholder="https://..." />
 
