@@ -113,12 +113,41 @@ export function encodeShortcodes(text, byName) {
     byName.has(name) ? `[[e:${byName.get(name).id}]]` : whole);
 }
 
-/** Split a message body into text and emoji parts for rendering. */
+/**
+ * A link to a picture, resolved to something an <img> can actually load.
+ * Handles direct image URLs and GIPHY page links, which are what people
+ * actually paste. Returns null for anything else, which stays a plain link.
+ */
+export function toMediaUrl(text) {
+  let u;
+  try { u = new URL(text.trim()); } catch { return null; }
+  if (u.protocol !== 'https:') return null;
+
+  if (/\.(gif|png|jpe?g|webp)$/i.test(u.pathname)) return u.href;
+
+  // https://giphy.com/gifs/some-slug-3o7TKMt1VVNkHV2PaE -> the media file
+  if (/(^|\.)giphy\.com$/i.test(u.hostname)) {
+    const m = u.pathname.match(/\/gifs\/(?:.*-)?([A-Za-z0-9]{6,})\/?$/);
+    if (m) return `https://i.giphy.com/${m[1]}.gif`;
+  }
+  return null;
+}
+
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+/** Split a message body into text, emoji and pasted-picture parts. */
 export function splitBody(body) {
-  return body.split(/(\[\[e:[0-9a-f-]{36}\]\])/i).filter(Boolean).map(part => {
-    const m = part.match(/^\[\[e:([0-9a-f-]{36})\]\]$/i);
-    return m ? { emojiId: m[1] } : { text: part };
-  });
+  const out = [];
+  for (const chunk of body.split(/(\[\[e:[0-9a-f-]{36}\]\])/i).filter(Boolean)) {
+    const m = chunk.match(/^\[\[e:([0-9a-f-]{36})\]\]$/i);
+    if (m) { out.push({ emojiId: m[1] }); continue; }
+    for (const bit of chunk.split(URL_RE).filter(Boolean)) {
+      const media = URL_RE.test(bit) ? toMediaUrl(bit) : null;
+      URL_RE.lastIndex = 0;
+      out.push(media ? { media } : { text: bit });
+    }
+  }
+  return out;
 }
 
 /**

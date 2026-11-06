@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
-import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames } from './packs.js';
+import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames, toMediaUrl } from './packs.js';
 
 // The halo. Inline so it scales and needs no path juggling under a base path.
 function Halo({ size = 64, className = '' }) {
@@ -154,6 +154,7 @@ function Chat({ name, room, onLeave }) {
   const [packs, setPacks] = useState([]);
   const [emoji, setEmoji] = useState([]);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showMedia, setShowMedia] = useState(false);
   const [sendErr, setSendErr] = useState('');
   const end = useRef(null);
 
@@ -324,13 +325,23 @@ function Chat({ name, room, onLeave }) {
         />
       )}
 
+      {showMedia && (
+        <MediaSheet
+          room={room} name={name} packs={packs} emoji={emoji}
+          onSend={url => { setDraft(d => (d ? d + ' ' : '') + url); setShowMedia(false); }}
+          onClose={() => setShowMedia(false)}
+        />
+      )}
+
       <div className="composer">
         {sendErr && <p className="err send-err">Not sent: {sendErr}</p>}
         {/* The tool bar. One button today; this is where gifs, music and
             anything else people bring will hang off. */}
         <div className="tools">
-          <button type="button" className="tool" title="Emoji"
+          <button type="button" className="tool emoji-tool" title="Emoji"
                   onClick={() => setShowEmoji(true)}>☺</button>
+          <button type="button" className="tool gif" title="Paste a GIF or picture link"
+                  onClick={() => setShowMedia(true)}>GIF</button>
         </div>
         <form onSubmit={send}>
           <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Message" />
@@ -345,6 +356,7 @@ function Chat({ name, room, onLeave }) {
 function Body({ body, byId }) {
   return splitBody(body).map((part, i) => {
     if (part.text !== undefined) return <span key={i}>{part.text}</span>;
+    if (part.media) return <img key={i} className="media" src={part.media} alt="" loading="lazy" />;
     const e = byId.get(part.emojiId);
     return e
       ? <img key={i} className="emoji" src={e.url} alt={':' + e.name + ':'} title={':' + e.name + ':'} />
@@ -431,6 +443,79 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
         <input ref={imgRef} type="file" accept="image/*" multiple hidden
                onChange={e => { const fs = [...e.target.files]; e.target.value = '';
                                 if (fs.length) install(() => readLooseImages(fs, 'My pack')); }} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Paste a link to a GIF, see it, send it, and optionally keep it in the group's
+ * library. Nothing is uploaded: a kept GIF is a pack entry whose url points at
+ * wherever the picture already lives.
+ */
+function MediaSheet({ room, name, packs, emoji, onSend, onClose }) {
+  const [raw, setRaw] = useState('');
+  const [keepName, setKeepName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const url = toMediaUrl(raw);
+  const taken = new Set(emoji.map(e => e.name));
+  const clean = keepName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+  async function keep() {
+    setBusy(true);
+    setErr('');
+    try {
+      let shelf = packs.find(p => p.name === 'Saved GIFs');
+      if (!shelf) {
+        const { data, error } = await supabase.from('packs')
+          .insert({ room_id: room.id, name: 'Saved GIFs', added_by: name }).select().single();
+        if (error) throw error;
+        shelf = data;
+      }
+      let n = clean, i = 2;
+      while (taken.has(n)) n = `${clean}-${i++}`;
+      const { error } = await supabase.from('emoji').insert({ pack_id: shelf.id, name: n, url });
+      if (error) throw error;
+      onSend(url);
+    } catch (ex) {
+      setErr(ex.message || String(ex));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sheet" onClick={onClose}>
+      <div className="sheet-card" onClick={e => e.stopPropagation()}>
+        <div className="sheet-head">
+          <strong>Send a GIF</strong>
+          <button className="link" onClick={onClose}>Done</button>
+        </div>
+
+        <p className="muted">Find a GIF anywhere, copy its link, paste it here.</p>
+        <input autoFocus value={raw} onChange={e => setRaw(e.target.value)}
+               placeholder="https://..." />
+
+        {raw && !url && <p className="err">That link is not a picture or a GIPHY page.</p>}
+
+        {url && (
+          <>
+            <div className="preview"><img src={url} alt="" /></div>
+            <div className="pack-actions">
+              <button onClick={() => onSend(url)}>Send</button>
+            </div>
+            <div className="keep">
+              <input value={keepName} onChange={e => setKeepName(e.target.value)}
+                     placeholder="Keep it as :name:" maxLength={32} />
+              <button className="ghost" disabled={!clean || busy} onClick={keep}>
+                {busy ? 'Keeping...' : 'Keep in pack'}
+              </button>
+            </div>
+            <p className="muted hint">Keeping it puts it in the group's library, one tap away next time.</p>
+          </>
+        )}
+
+        {err && <p className="err">{err}</p>}
       </div>
     </div>
   );

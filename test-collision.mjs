@@ -18,7 +18,7 @@ await page.waitForSelector('.code');
 
 // Both sample packs contain :shocked:.
 for (const zip of ['starter-faces.zip', 'capybaras.zip']) {
-  await page.locator('.tool').click();
+  await page.locator('.tool.emoji-tool').click();
   await page.waitForSelector('.sheet-card');
   await page.locator('input[type=file][accept=".zip"]').setInputFiles(path.resolve('public', zip));
   await page.waitForFunction(
@@ -29,7 +29,7 @@ for (const zip of ['starter-faces.zip', 'capybaras.zip']) {
   await page.waitForTimeout(300);
 }
 
-await page.locator('.tool').click();
+await page.locator('.tool.emoji-tool').click();
 await page.waitForSelector('.sheet-card');
 
 const titles = await page.locator('.cell').evaluateAll(els => els.map(e => e.getAttribute('title')));
@@ -49,7 +49,7 @@ async function pickAndSend(title) {
   const got = await page.locator('.bubble img.emoji').last().getAttribute('src');
   console.log(want === got ? `PASS: ${title} sent the picture that was clicked`
                            : `FAIL: ${title} sent a different picture`);
-  await page.locator('.tool').click();
+  await page.locator('.tool.emoji-tool').click();
   await page.waitForSelector('.sheet-card');
 }
 

@@ -27,7 +27,7 @@ await a.waitForSelector('.code');
 const code = (await a.locator('.code').first().innerText()).trim();
 
 // Install the pack.
-await a.locator('.tool').click();
+await a.locator('.tool.emoji-tool').click();
 await a.waitForSelector('.sheet-card');
 await a.locator('input[type=file][accept=".zip"]').setInputFiles(ZIP);
 try {
@@ -72,7 +72,7 @@ const inline = await b.locator('.bubble', { hasText: 'nice one' }).locator('img.
 console.log(inline === 1 ? 'PASS: inline emoji inside text' : `FAIL: ${inline} inline emoji`);
 
 await a.waitForTimeout(600);
-await a.locator('.tool').click();
+await a.locator('.tool.emoji-tool').click();
 await a.waitForSelector('.sheet-card');
 await a.screenshot({ path: 'packs-sheet.png' });
 await a.keyboard.press('Escape');
