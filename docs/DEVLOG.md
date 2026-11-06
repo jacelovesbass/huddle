@@ -36,6 +36,67 @@ The refactor touched almost every file and was safe only because 37 browser
 tests existed to say so. They ran green before and after. That is the entire
 argument for having written them.
 
+
+## 2026-11-07 — Tidy up, a tool contract, and games
+
+Three things, in that order, because the second depended on the first and the
+third proved the second.
+
+**Cleared 125 junk rooms** from a live database, left by tests that never tidied
+up. The rooms were the symptom; the missing teardown was the defect, and
+`scripts/test-all.mjs` now removes what each run creates. Narrowly: name must
+match, room must be under two hours old, keep list respected. A test group was
+called **"Pure"**, the same as the real group, which was one typo from deleting
+a real conversation.
+
+**Then the tidy-up.** 45 loose scripts in the root, 20 of them one-off debug
+files; schema applied by hand-editing a script with no record of what had run;
+`App.jsx` at 707 lines holding nine components; no linting. Now: ordered
+migrations in a `schema_migrations` table, `scripts/` and `test/`, components
+one per file, ESLint with the hooks rules enforced in CI. Six real lint
+findings, all fixed rather than silenced.
+
+**My own ESLint install broke the deploy**, and this is the bit worth
+remembering. `--legacy-peer-deps` locally hid a genuine conflict that CI's
+strict `npm ci` would not tolerate, so two deploys failed and the live site sat
+on the pre-refactor build. Nobody noticed because the local run was green.
+**A green terminal says nothing about production.** Lint now runs in CI and the
+habit now is to check the URL.
+
+**The tool contract.** The stated product is a bar where people bring their own
+tools, and a tool was hardcoded into `Chat.jsx`. Those cannot both be true. A
+tool is now `{id, label, icon, Sheet, render?}` in `src/tools/`, the bar maps
+over the registry, and `Chat` knows tools exist and nothing else. Emoji and GIF
+were moved onto the same contract a third party would use, because a private
+path for the built-ins rots the public one.
+
+**A dice tool proved the contract and was then deleted**, which was the right
+life for it. The MD was blunt about it not being the point, and he was right:
+it was scaffolding, not a game.
+
+**Games.** One HTML file, run in an iframe with `sandbox="allow-scripts"` and
+never `allow-same-origin`, so the game sits in an opaque origin with no
+cookies, no storage, no DOM access and no route to the database. The host API
+is three messages wide on purpose: everything added is something a hostile game
+can try. Written entirely through the tool contract, which is the contract
+paying for itself the first time it was used in anger.
+
+**Kelp Diver is the evidence.** A 1200-line canvas game written in another
+session, 45 KB, installed unmodified and ran with zero console errors. A second
+member of the group saw it in their list without installing anything. That is
+much stronger than a fixture I wrote to pass my own test. The only change was
+nine lines posting the dive total to the chat, guarded so it is inert outside
+Pure Chat, and flagged rather than slipped in.
+
+**Also found and fixed: an unfiltered realtime subscription I introduced**
+earlier in the week. Every client in every room reloaded its packs on any emoji
+change anywhere. Invisible at four people, an outage at a thousand rooms.
+`emoji` rows now carry `room_id`, kept true by a trigger. The test checks both
+that another room does not wake you *and* that your own still does, so the
+assertion cannot pass by the subscription being broken entirely.
+
+**State:** 61 tests, 10 migrations, 14 suites, 560 KB bundle, A$0 spent.
+
 ---
 
 ## 2026-11-06 — Emoji packs, GIFs, and working out what the product is

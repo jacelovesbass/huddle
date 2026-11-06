@@ -5,6 +5,7 @@ no ads, and **the material in it belongs to the group**: your own emoji, your
 own GIFs, your own packs that you can take away with you.
 
 **Live:** https://jacelovesbass.github.io/purechat/
+**Start here:** [docs/NEXT.md](docs/NEXT.md)
 **Docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [docs/DEVLOG.md](docs/DEVLOG.md) · [docs/DECISIONS.md](docs/DECISIONS.md) ·
 [docs/PROPOSAL.md](docs/PROPOSAL.md) ·
