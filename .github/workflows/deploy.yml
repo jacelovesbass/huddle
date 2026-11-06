@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # Lint before building, so a deploy cannot carry a lint error to
+      # production. It will not catch a UI problem; it catches the ones that
+      # are cheap to catch.
+      - run: npm run lint
       # A file the running app can poll to notice it is out of date.
       - run: echo "{\"build\":\"${GITHUB_SHA}\"}" > public/version.json
       - run: npm run build

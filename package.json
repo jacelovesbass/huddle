@@ -18,12 +18,12 @@
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@vitejs/plugin-react": "^6.2.1",
-    "eslint": "^10.14.0",
+    "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.14.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "pg": "^8.23.1",
     "playwright": "^1.64.1",
     "vite": "^8.3.6"
