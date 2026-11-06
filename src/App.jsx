@@ -321,9 +321,10 @@ function Chat({ name, room, onLeave }) {
         <div className="title">
           <Halo size={30} className="mark" />
           <strong>{room.name}</strong>
-          <span className="code">{room.join_code}</span>
         </div>
         <div className="actions">
+          <button className="link refresh" title="Get the latest version"
+                  onClick={() => location.replace(`${location.pathname}?v=${Date.now()}`)}>⟳</button>
           <button className="link" onClick={() => setShowPeople(true)}>
             People {people.length > 0 && <span className="pill">{people.length}</span>}
           </button>
@@ -335,7 +336,7 @@ function Chat({ name, room, onLeave }) {
         <div className="sheet" onClick={() => setShowPeople(false)}>
           <div className="sheet-card" onClick={e => e.stopPropagation()}>
             <div className="sheet-head">
-              <strong>In this group</strong>
+              <strong>{room.name} <span className="code">{room.join_code}</span></strong>
               <button className="link" onClick={() => setShowPeople(false)}>Done</button>
             </div>
             {people.length === 0 && <p className="muted">Nobody yet.</p>}

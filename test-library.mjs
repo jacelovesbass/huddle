@@ -20,7 +20,7 @@ await page.getByPlaceholder('Your name').fill('Jason');
 await page.getByRole('button', { name: 'Continue' }).click();
 await page.getByPlaceholder('Group name').fill('Library');
 await page.getByRole('button', { name: 'Create group' }).click();
-await page.waitForSelector('.code');
+await page.waitForSelector('.chat header');
 
 // Some actions close the sheet themselves, some do not. Close only if open.
 const closeSheet = async () => {

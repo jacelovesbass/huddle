@@ -3,6 +3,15 @@ import { chromium } from 'playwright';
 
 const URL = process.env.TEST_URL || 'http://localhost:5173';
 const browser = await chromium.launch();
+const joinCode = async page => {
+  await page.getByRole('button', { name: /^People/ }).click();
+  await page.waitForSelector('.sheet-card .code');
+  const c = (await page.locator('.sheet-card .code').innerText()).trim();
+  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
+  await page.waitForTimeout(250);
+  return c;
+};
+
 
 const open = async (name, url = URL) => {
   const page = await (await browser.newContext({ viewport: { width: 390, height: 760 } })).newPage();
@@ -19,8 +28,7 @@ const open = async (name, url = URL) => {
 const a = await open('Jason');
 await a.getByPlaceholder('Group name').fill('People Test');
 await a.getByRole('button', { name: 'Create group' }).click();
-await a.waitForSelector('.code');
-const code = (await a.locator('.code').first().innerText()).trim();
+const code = await joinCode(a);
 
 // Sam joins but says nothing. The old version could not see him at all.
 const b = await open('Sam', `${URL}#${code}`);

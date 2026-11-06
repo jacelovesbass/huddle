@@ -1,6 +1,15 @@
 import { chromium } from 'playwright';
 const URL = 'https://jacelovesbass.github.io/purechat/';
 const b = await chromium.launch();
+const joinCode = async page => {
+  await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: /^People/ }).click();
+  await page.waitForSelector('.sheet-card .code');
+  const c = (await page.locator('.sheet-card .code').innerText()).trim();
+  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
+  await page.waitForTimeout(250);
+  return c;
+};
 const open = async (name, url = URL) => {
   const p = await (await b.newContext({ viewport:{width:1280,height:760} })).newPage();
   await p.goto(url); await p.waitForSelector('.gate, .chat');
@@ -13,8 +22,7 @@ const open = async (name, url = URL) => {
 const a = await open('Jason');
 await a.getByPlaceholder('Group name').fill('Demo');
 await a.getByRole('button',{name:'Create group'}).click();
-await a.waitForSelector('.code');
-const code = (await a.locator('.code').first().innerText()).trim();
+const code = await joinCode(a);
 const s = await open('Foxy', `${URL}#${code}`);
 await s.waitForSelector('.chat header');
 

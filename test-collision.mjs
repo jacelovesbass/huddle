@@ -14,7 +14,7 @@ await page.getByPlaceholder('Your name').fill('Jason');
 await page.getByRole('button', { name: 'Continue' }).click();
 await page.getByPlaceholder('Group name').fill('Collision');
 await page.getByRole('button', { name: 'Create group' }).click();
-await page.waitForSelector('.code');
+await page.waitForSelector('.chat header');
 
 // Both sample packs contain :shocked:.
 for (const zip of ['starter-faces.zip', 'capybaras.zip']) {

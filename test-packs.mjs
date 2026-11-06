@@ -6,6 +6,15 @@ import path from 'node:path';
 const URL = process.env.TEST_URL || 'http://localhost:5173';
 const ZIP = path.resolve('starter-faces.zip');
 const browser = await chromium.launch();
+const joinCode = async page => {
+  await page.locator('.tool.emoji-tool').first().waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: /^People/ }).click();
+  await page.waitForSelector('.sheet-card .code');
+  const c = (await page.locator('.sheet-card .code').innerText()).trim();
+  await page.locator('.sheet').click({ position: { x: 8, y: 8 } });
+  await page.waitForTimeout(250);
+  return c;
+};
 
 const open = async (name, url = URL) => {
   const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
@@ -23,8 +32,7 @@ const open = async (name, url = URL) => {
 const a = await open('Jason');
 await a.getByPlaceholder('Group name').fill('Pack Test');
 await a.getByRole('button', { name: 'Create group' }).click();
-await a.waitForSelector('.code');
-const code = (await a.locator('.code').first().innerText()).trim();
+const code = await joinCode(a);
 
 // Install the pack.
 await a.locator('.tool.emoji-tool').click();

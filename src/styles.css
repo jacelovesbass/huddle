@@ -373,3 +373,6 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
   font-weight: 600;
   background: var(--mine);
 }
+
+/* Always-available escape hatch from a stale cached copy. */
+.refresh { font-size: 19px; line-height: 1; padding: 2px 6px; }
