@@ -120,3 +120,20 @@ export function splitBody(body) {
     return m ? { emojiId: m[1] } : { text: part };
   });
 }
+
+/**
+ * Two packs may legitimately both contain :shocked:. Rename the later one
+ * rather than letting a shortcode be ambiguous: the picker showed one picture
+ * and the message carried the other, which is exactly what Foxy hit.
+ */
+export function dedupeNames(emoji, takenNames) {
+  const taken = new Set(takenNames);
+  return emoji.map(e => {
+    if (!taken.has(e.name)) { taken.add(e.name); return e; }
+    let n = 2;
+    while (taken.has(`${e.name}-${n}`)) n++;
+    const name = `${e.name}-${n}`;
+    taken.add(name);
+    return { ...e, name };
+  });
+}

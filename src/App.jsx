@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabase.js';
-import { readZip, readLooseImages, encodeShortcodes, splitBody } from './packs.js';
+import { readZip, readLooseImages, encodeShortcodes, splitBody, dedupeNames } from './packs.js';
 
 // The halo. Inline so it scales and needs no path juggling under a base path.
 function Halo({ size = 64, className = '' }) {
@@ -160,7 +160,15 @@ function Chat({ name, room, onLeave }) {
   // Anyone in the room resolves an emoji id, so a person without the pack
   // still sees the picture rather than a word in colons.
   const byId = useMemo(() => new Map(emoji.map(e => [e.id, e])), [emoji]);
-  const byName = useMemo(() => new Map(emoji.map(e => [e.name, e])), [emoji]);
+  const byName = useMemo(() => {
+    const m = new Map();
+    for (const e of emoji) if (!m.has(e.name)) m.set(e.name, e);
+    return m;
+  }, [emoji]);
+
+  // Clicking a specific picture must send that picture, whatever else shares
+  // its name. The picker records the exact id it offered.
+  const picked = useRef(new Map());
 
   // Share sheet on phones, clipboard everywhere else.
   async function invite() {
@@ -240,12 +248,15 @@ function Chat({ name, room, onLeave }) {
 
   async function send(e) {
     e.preventDefault();
-    const body = encodeShortcodes(draft.trim(), byName);
+    const resolver = new Map(byName);
+    for (const [n, e] of picked.current) resolver.set(n, e);
+    const body = encodeShortcodes(draft.trim(), resolver);
     if (!body) return;
     setDraft('');
     const { error } = await supabase.from('messages').insert({ room_id: room.id, author: name, body });
     // Silently losing a message is the worst failure this app can have.
     if (error) { setSendErr(error.message); setDraft(draft); }
+    else picked.current.clear();
   }
 
   return (
@@ -304,7 +315,11 @@ function Chat({ name, room, onLeave }) {
       {showEmoji && (
         <EmojiSheet
           room={room} name={name} packs={packs} emoji={emoji}
-          onPick={e => { setDraft(d => d + `:${e.name}:`); setShowEmoji(false); }}
+          onPick={e => {
+            picked.current.set(e.name, e);
+            setDraft(d => d + `:${e.name}:`);
+            setShowEmoji(false);
+          }}
           onClose={() => setShowEmoji(false)}
         />
       )}
@@ -347,17 +362,20 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
     setErr('');
     try {
       const pack = await read();
-      setBusy(`Adding ${pack.emoji.length} emoji...`);
+      const renamed = dedupeNames(pack.emoji, emoji.map(e => e.name));
+      const clashes = renamed.filter((e, i) => e.name !== pack.emoji[i].name).length;
+      setBusy(`Adding ${renamed.length} emoji...`);
       const { data: row, error } = await supabase.from('packs')
         .insert({ room_id: room.id, name: pack.name, author: pack.author, added_by: name })
         .select().single();
       if (error) throw error;
       const { error: e2 } = await supabase.from('emoji')
-        .insert(pack.emoji.map(e => ({ pack_id: row.id, name: e.name, url: e.url })));
+        .insert(renamed.map(e => ({ pack_id: row.id, name: e.name, url: e.url })));
       if (e2) {
         await supabase.from('packs').delete().eq('id', row.id);
         throw e2;
       }
+      if (clashes) setErr(`${clashes} name${clashes > 1 ? 's' : ''} already in use here, renamed so nothing is ambiguous.`);
     } catch (ex) {
       setErr(ex.message || String(ex));
     } finally {
