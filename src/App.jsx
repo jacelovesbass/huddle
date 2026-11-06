@@ -334,7 +334,7 @@ function Chat({ name, room, onLeave }) {
 
       {showMedia && (
         <MediaSheet
-          room={room} name={name} packs={packs} emoji={emoji}
+          room={room} name={name} packs={packs} emoji={emoji} msgs={msgs}
           onSend={url => { setDraft(d => (d ? d + ' ' : '') + url); setShowMedia(false); }}
           onSendEmoji={e => {
             picked.current.set(e.name, e);
@@ -485,22 +485,44 @@ function EmojiSheet({ room, name, packs, emoji, onPick, onClose }) {
  * library. Nothing is uploaded: a kept GIF is a pack entry whose url points at
  * wherever the picture already lives.
  */
-function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) {
+function MediaSheet({ room, name, packs, emoji, msgs, onSend, onSendEmoji, onClose }) {
   const [raw, setRaw] = useState('');
   const [tags, setTags] = useState('');
   const [q, setQ] = useState('');
   const fileRef = useRef(null);
 
-  // Everything the group has kept, newest first, filtered by name or tag.
   const shelf = packs.find(p => p.name === 'Saved GIFs');
-  const library = emoji
-    .filter(e => shelf && e.pack_id === shelf.id)
-    .filter(e => {
-      const needle = q.trim().toLowerCase();
-      return !needle || e.name.includes(needle) || (e.tags || '').toLowerCase().includes(needle);
-    })
-    .slice()
-    .reverse();
+
+  /**
+   * The library fills itself. Anything kept on purpose, plus every picture
+   * already sent in this conversation. Requiring people to press Keep meant
+   * the picker was empty for someone who had been sending GIFs all day.
+   */
+  const library = useMemo(() => {
+    const out = [];
+    const seen = new Set();
+
+    for (const e of emoji) {
+      if (shelf && e.pack_id === shelf.id && !seen.has(e.url)) {
+        seen.add(e.url);
+        out.push({ key: e.id, url: e.url, name: e.name, tags: e.tags || '', kept: true, emoji: e });
+      }
+    }
+
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      for (const part of splitBody(msgs[i].body)) {
+        if (!part.media || seen.has(part.media)) continue;
+        seen.add(part.media);
+        out.push({ key: part.media, url: part.media, name: '', tags: '', kept: false });
+      }
+    }
+    return out;
+  }, [emoji, msgs, shelf]);
+
+  const shown = library.filter(g => {
+    const needle = q.trim().toLowerCase();
+    return !needle || g.name.includes(needle) || g.tags.toLowerCase().includes(needle);
+  });
   const [keepName, setKeepName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -571,21 +593,22 @@ function MediaSheet({ room, name, packs, emoji, onSend, onSendEmoji, onClose }) 
           <button className="link" onClick={onClose}>Done</button>
         </div>
 
-        {shelf && library.length > 0 && (
+        {library.length > 0 && (
           <div className="library">
             <input className="search" value={q} onChange={e => setQ(e.target.value)}
-                   placeholder={`Search ${library.length} saved GIF${library.length > 1 ? 's' : ''}`} />
+                   placeholder={`Search ${library.length} GIF${library.length > 1 ? 's' : ''} in this group`} />
             <div className="gif-grid">
-              {library.map(e => (
-                <button key={e.id} className="gif-cell" title={`:${e.name}:${e.tags ? ' - ' + e.tags : ''}`}
-                        onClick={() => onSendEmoji(e)}>
-                  <img src={e.url} alt={e.name} loading="lazy" />
+              {shown.map(g => (
+                <button key={g.key} className={'gif-cell' + (g.kept ? ' kept' : '')}
+                        title={g.kept ? `:${g.name}:${g.tags ? ' - ' + g.tags : ''}` : 'Sent earlier'}
+                        onClick={() => (g.kept ? onSendEmoji(g.emoji) : onSend(g.url))}>
+                  <img src={g.url} alt={g.name} loading="lazy" />
                 </button>
               ))}
             </div>
+            {shown.length === 0 && <p className="muted">Nothing matches "{q}".</p>}
           </div>
         )}
-        {shelf && library.length === 0 && q && <p className="muted">Nothing matches "{q}".</p>}
 
         <div className="pack-actions">
           <button onClick={() => fileRef.current.click()} disabled={busy}>
