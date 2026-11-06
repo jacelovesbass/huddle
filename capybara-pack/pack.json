@@ -1,0 +1,39 @@
+{
+  "format": "purepack/1",
+  "name": "Capybaras",
+  "author": "Pure Chat",
+  "emoji": [
+    {
+      "name": "capy",
+      "file": "capy.png"
+    },
+    {
+      "name": "happy",
+      "file": "happy.png"
+    },
+    {
+      "name": "sleepy",
+      "file": "sleepy.png"
+    },
+    {
+      "name": "shocked",
+      "file": "shocked.png"
+    },
+    {
+      "name": "sideeye",
+      "file": "sideeye.png"
+    },
+    {
+      "name": "crying",
+      "file": "crying.png"
+    },
+    {
+      "name": "cool",
+      "file": "cool.png"
+    },
+    {
+      "name": "love",
+      "file": "love.png"
+    }
+  ]
+}
