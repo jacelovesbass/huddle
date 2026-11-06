@@ -12,20 +12,12 @@
       "file": "happy.png"
     },
     {
-      "name": "sleepy",
-      "file": "sleepy.png"
+      "name": "content",
+      "file": "content.png"
     },
     {
-      "name": "shocked",
-      "file": "shocked.png"
-    },
-    {
-      "name": "sideeye",
-      "file": "sideeye.png"
-    },
-    {
-      "name": "crying",
-      "file": "crying.png"
+      "name": "wink",
+      "file": "wink.png"
     },
     {
       "name": "cool",
@@ -34,6 +26,18 @@
     {
       "name": "love",
       "file": "love.png"
+    },
+    {
+      "name": "crying",
+      "file": "crying.png"
+    },
+    {
+      "name": "sleepy",
+      "file": "sleepy.png"
+    },
+    {
+      "name": "shocked",
+      "file": "shocked.png"
     }
   ]
 }

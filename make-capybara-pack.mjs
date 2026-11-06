@@ -1,69 +1,85 @@
-// Builds a capybara emoji pack. Drawn as SVG rather than generated, so every
-// face shares one head and the set actually looks like a set.
+// Capybara pack, drawn to the sticker-art convention Jason pointed at: thick
+// dark outline, soft greige fur, blush cheeks with hatch marks, and a Y-shaped
+// nose and mouth. Drawn from scratch rather than traced; the reference he sent
+// was a watermarked stock preview and is not ours to use.
 import { chromium } from 'playwright';
 import JSZip from 'jszip';
 import fs from 'node:fs';
 
-const FUR = '#a8763f';
-const FUR_DARK = '#8a5c30';
-const MUZZLE = '#c49561';
-const INK = '#2a1d12';
+const FUR = '#bda184';
+const MUZZLE = '#ab8e72';
+const LINE = '#2f2a24';
+const BLUSH = '#e0808f';
+const W = 4.2;
 
-// Third attempt. The first two read as a teddy bear because the head was a
-// dome with big round ears. A capybara front-on is a loaf: narrow across the
-// top, flaring out to a very broad squared-off snout, with tiny ears pinned
-// flat at the top corners and a big dark nose pad doing most of the work.
-const head = `
-  <ellipse cx="30" cy="24" rx="5.5" ry="4.5" fill="${FUR_DARK}"/>
-  <ellipse cx="70" cy="24" rx="5.5" ry="4.5" fill="${FUR_DARK}"/>
-  <path d="M31 24
-           q19 -5 38 0
-           q9 2 11 20
-           q3 24 1 36
-           q-2 12 -31 12
-           q-29 0 -31 -12
-           q-2 -12 1 -36
-           q2 -18 11 -20 z" fill="${FUR}"/>
-  <path d="M26 66 q24 -6 48 0 q2 16 -4 22 q-6 6 -20 6 q-14 0 -20 -6 q-6 -6 -4 -22 z" fill="${MUZZLE}"/>
-  <rect x="38" y="62" width="24" height="12" rx="6" fill="${INK}"/>
-  <ellipse cx="44.5" cy="68" rx="2" ry="2.8" fill="#6b563f"/>
-  <ellipse cx="55.5" cy="68" rx="2" ry="2.8" fill="#6b563f"/>`;
-
-const eyesOpen = (r = 4) => `
-  <ellipse cx="36" cy="41" rx="${r}" ry="${r + 0.4}" fill="${INK}"/>
-  <ellipse cx="64" cy="41" rx="${r}" ry="${r + 0.4}" fill="${INK}"/>`;
-
-const eyesClosed = `
-  <g stroke="${INK}" stroke-width="3.2" stroke-linecap="round" fill="none">
-    <path d="M31 42 q5 -6 10 0"/><path d="M59 42 q5 -6 10 0"/>
+// Ears sit behind the head so the outline reads as one silhouette.
+const ears = `
+  <g fill="${FUR}" stroke="${LINE}" stroke-width="${W}" stroke-linejoin="round">
+    <path d="M27 32 q-9 -19 4 -22 q13 -3 17 15 z"/>
+    <path d="M73 32 q9 -19 -4 -22 q-13 -3 -17 15 z"/>
   </g>`;
 
-const mouth = d => `<path d="${d}" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+const skull = `
+  <path d="M50 16 q-24 0 -32 20 q-7 17 -6 32 q1 18 38 18 q37 0 38 -18 q1 -15 -6 -32 q-8 -20 -32 -20 z"
+        fill="${FUR}" stroke="${LINE}" stroke-width="${W}" stroke-linejoin="round"/>
+  <ellipse cx="50" cy="60" rx="19" ry="15" fill="${MUZZLE}"/>`;
+
+// Nose pad and the stem below it. The mouth completes the Y.
+const nose = `
+  <path d="M43 52 q7 -3 14 0 q2 7 -7 8 q-9 -1 -7 -8 z" fill="${LINE}"/>
+  <path d="M50 60 v7" stroke="${LINE}" stroke-width="3.2" stroke-linecap="round" fill="none"/>`;
+
+const blush = `
+  <g stroke="${BLUSH}" stroke-width="2.6" stroke-linecap="round" opacity=".85">
+    <path d="M25 56 l4 5 M31 55 l4 5 M37 55 l3 5"/>
+    <path d="M75 56 l-4 5 M69 55 l-4 5 M63 55 l-3 5"/>
+  </g>`;
+
+const line = (d, w = 3.2, colour = LINE) =>
+  `<path d="${d}" stroke="${colour}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+const eyesDots = (r = 4.4) =>
+  `<ellipse cx="33" cy="42" rx="${r}" ry="${r + 0.6}" fill="${LINE}"/>
+   <ellipse cx="67" cy="42" rx="${r}" ry="${r + 0.6}" fill="${LINE}"/>`;
+
+const eyesArcs = line('M27 44 q6 -8 12 0 M61 44 q6 -8 12 0', 3.4);
+const eyesFlat = line('M28 43 h11 M61 43 h11', 3.4);
+
+const smile = line('M41 67 q9 9 18 0', 3.2);
+const openSmile = `<path d="M40 66 q10 14 20 0 z" fill="${LINE}"/>
+                   <path d="M46 72 q4 6 8 0 z" fill="#e8798f"/>`;
+const frown = line('M41 72 q9 -8 18 0', 3.2);
+const flat = line('M43 69 h14', 3.2);
 
 const FACES = {
-  capy:      eyesOpen() + mouth('M50 74 v4 M44 81 q6 4 12 0'),
-  happy:     eyesClosed + mouth('M50 74 v4 M43 79 q7 6 14 0'),
-  sleepy:    `<g stroke="${INK}" stroke-width="3.2" stroke-linecap="round"><path d="M31 42 h10"/><path d="M59 42 h10"/></g>`
-             + mouth('M50 74 v4 M46 80 q4 3 8 0')
-             + `<text x="78" y="26" font-family="system-ui" font-size="16" font-weight="700" fill="${INK}">z</text>`,
-  shocked:   `<ellipse cx="36" cy="41" rx="6" ry="7" fill="#fff"/><ellipse cx="64" cy="41" rx="6" ry="7" fill="#fff"/>
-              <ellipse cx="36" cy="42" rx="3.2" ry="3.8" fill="${INK}"/><ellipse cx="64" cy="42" rx="3.2" ry="3.8" fill="${INK}"/>
-              <ellipse cx="50" cy="82" rx="4.5" ry="5" fill="${INK}"/>`,
-  sideeye:   `<ellipse cx="40" cy="41" rx="4" ry="4.4" fill="${INK}"/><ellipse cx="68" cy="41" rx="4" ry="4.4" fill="${INK}"/>`
-             + mouth('M50 74 v4 M44 80 h12'),
-  crying:    eyesClosed
-             + `<path d="M36 46 q-3 7 0 10 q3 -3 0 -10" fill="#6fb7f0"/><path d="M64 46 q-3 7 0 10 q3 -3 0 -10" fill="#6fb7f0"/>`
-             + mouth('M50 74 v4 M44 82 q6 -5 12 0'),
-  cool:      `<rect x="27" y="35" width="46" height="12" rx="5" fill="${INK}"/>
-              <rect x="23" y="38" width="5" height="4" rx="2" fill="${INK}"/><rect x="72" y="38" width="5" height="4" rx="2" fill="${INK}"/>`
-             + mouth('M50 74 v4 M44 81 q6 4 12 0'),
-  love:      `<g fill="#ff5d7a"><path d="M36 35 a4.2 4.2 0 0 1 6.6 4.2 l-6.6 6.6 l-6.6 -6.6 a4.2 4.2 0 0 1 6.6 -4.2z"/>
-              <path d="M64 35 a4.2 4.2 0 0 1 6.6 4.2 l-6.6 6.6 l-6.6 -6.6 a4.2 4.2 0 0 1 6.6 -4.2z"/></g>`
-             + mouth('M50 74 v4 M43 79 q7 6 14 0'),
+  capy:    eyesDots() + blush + nose + flat,
+  happy:   eyesArcs + blush + nose + openSmile,
+  content: eyesArcs + blush + nose + smile,
+  wink:    `<ellipse cx="33" cy="42" rx="4.4" ry="5" fill="${LINE}"/>` +
+           line('M61 44 q6 -8 12 0', 3.4) + blush + nose + smile,
+  cool:    `<rect x="22" y="36" width="56" height="13" rx="6" fill="${LINE}"/>
+            <rect x="17" y="39" width="6" height="4.5" rx="2" fill="${LINE}"/>
+            <rect x="77" y="39" width="6" height="4.5" rx="2" fill="${LINE}"/>` +
+           blush + nose + smile,
+  love:    `<g fill="#f2566f" stroke="${LINE}" stroke-width="2.6" stroke-linejoin="round">
+              <path d="M33 34 a5.5 5.5 0 0 1 8.5 5.5 l-8.5 8.5 l-8.5 -8.5 a5.5 5.5 0 0 1 8.5 -5.5z"/>
+              <path d="M67 34 a5.5 5.5 0 0 1 8.5 5.5 l-8.5 8.5 l-8.5 -8.5 a5.5 5.5 0 0 1 8.5 -5.5z"/>
+            </g>` + blush + nose + openSmile,
+  crying:  eyesFlat + blush + nose + frown +
+           `<path d="M30 47 q-4 10 0 14 q4 -4 0 -14z" fill="#7cc2f2" stroke="${LINE}" stroke-width="2.2"/>
+            <path d="M70 47 q-4 10 0 14 q4 -4 0 -14z" fill="#7cc2f2" stroke="${LINE}" stroke-width="2.2"/>`,
+  sleepy:  eyesFlat + blush + nose + flat +
+           line('M31 40 q5 -6 10 -1 M59 39 q5 -5 10 1', 2.4) +
+           `<text x="76" y="26" font-family="system-ui" font-weight="700" font-size="15" fill="${LINE}">z</text>`,
+  shocked: `<ellipse cx="33" cy="42" rx="6.5" ry="7.5" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
+            <ellipse cx="67" cy="42" rx="6.5" ry="7.5" fill="#fff" stroke="${LINE}" stroke-width="2.6"/>
+            <ellipse cx="33" cy="43" rx="3" ry="3.6" fill="${LINE}"/>
+            <ellipse cx="67" cy="43" rx="3" ry="3.6" fill="${LINE}"/>` +
+           nose + `<ellipse cx="50" cy="72" rx="5" ry="6" fill="${LINE}"/>`,
 };
 
 const svg = face => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="128" height="128">
-  ${head}${face}
+  ${ears}${skull}${face}
 </svg>`;
 
 const browser = await chromium.launch();
@@ -74,7 +90,7 @@ fs.mkdirSync('capybara-pack', { recursive: true });
 for (const [name, face] of Object.entries(FACES)) {
   const page = await (await browser.newContext({ viewport: { width: 128, height: 128 } })).newPage();
   await page.setContent(`<body style="margin:0">${svg(face)}</body>`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(110);
   const buf = await page.screenshot({ omitBackground: true, type: 'png' });
   fs.writeFileSync(`capybara-pack/${name}.png`, buf);
   zip.file(`${name}.png`, buf);
@@ -85,14 +101,17 @@ zip.file('pack.json', JSON.stringify(manifest, null, 2));
 fs.writeFileSync('capybara-pack/pack.json', JSON.stringify(manifest, null, 2));
 fs.writeFileSync('public/capybaras.zip', await zip.generateAsync({ type: 'nodebuffer' }));
 
-// A contact sheet so the set can be eyeballed as a set.
-const page = await (await browser.newContext({ viewport: { width: 560, height: 160 } })).newPage();
-await page.setContent(`<body style="margin:0;background:#171a21;display:flex;align-items:center;gap:6px;padding:12px">
-  ${Object.keys(FACES).map(n => `<div style="text-align:center;color:#8b93a3;font:11px system-ui">
-    <img src="data:image/png;base64,${fs.readFileSync(`capybara-pack/${n}.png`).toString('base64')}" width="58"><div>${n}</div></div>`).join('')}
+// Contact sheet on light and dark, because stickers get used on both.
+const names = Object.keys(FACES);
+const tile = (n, fg) => `<div style="text-align:center;color:${fg};font:11px system-ui">
+  <img src="data:image/png;base64,${fs.readFileSync(`capybara-pack/${n}.png`).toString('base64')}" width="62"><div>${n}</div></div>`;
+const page = await (await browser.newContext({ viewport: { width: 680, height: 220 } })).newPage();
+await page.setContent(`<body style="margin:0;font:11px system-ui">
+  <div style="background:#171a21;display:flex;gap:4px;padding:10px">${names.map(n => tile(n, '#8b93a3')).join('')}</div>
+  <div style="background:#f2f2f2;display:flex;gap:4px;padding:10px">${names.map(n => tile(n, '#666')).join('')}</div>
 </body>`, { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(300);
+await page.waitForTimeout(350);
 await page.screenshot({ path: 'capybara-sheet.png' });
 
 await browser.close();
-console.log('capybaras.zip:', (fs.statSync('public/capybaras.zip').size / 1024).toFixed(1), 'KB,', Object.keys(FACES).length, 'emoji');
+console.log('capybaras.zip:', (fs.statSync('public/capybaras.zip').size / 1024).toFixed(1), 'KB,', names.length, 'emoji');
