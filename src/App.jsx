@@ -113,7 +113,12 @@ export default function App() {
     ? <NameGate onDone={n => { store.set('name', n); setName(n); }} />
     : !room
       ? <RoomGate onDone={r => { store.set('roomId', r.id); history_.add(r); setRoom(r); }} />
-      : <Chat name={name} room={room} onLeave={() => { store.set('roomId', ''); setRoom(null); }} />;
+      : <Chat
+          name={name}
+          room={room}
+          onBack={() => { store.set('roomId', ''); setRoom(null); }}
+          onForget={() => { history_.drop(room.id); store.set('roomId', ''); setRoom(null); }}
+        />;
 
   return <><UpdateBanner />{screen}</>;
 }
@@ -192,7 +197,7 @@ function RoomGate({ onDone }) {
   );
 }
 
-function Chat({ name, room, onLeave }) {
+function Chat({ name, room, onBack, onForget }) {
   const [msgs, setMsgs] = useState([]);
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
@@ -318,6 +323,7 @@ function Chat({ name, room, onLeave }) {
   return (
     <div className="chat">
       <header>
+        <button className="link back" title="All groups" onClick={onBack}>‹</button>
         <div className="title">
           <Halo size={30} className="mark" />
           <strong>{room.name}</strong>
@@ -347,7 +353,8 @@ function Chat({ name, room, onLeave }) {
                 <span className="muted when">{online.includes(p.name) ? 'online' : 'offline'}</span>
               </div>
             ))}
-            <button className="leave" onClick={onLeave}>Leave group</button>
+            <button className="leave" onClick={onForget}>Forget this group</button>
+            <p className="muted hint">Forgetting removes it from your list on this device. Anyone with the code can still get in, and nothing is deleted for the others.</p>
           </div>
         </div>
       )}

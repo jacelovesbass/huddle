@@ -25,8 +25,7 @@ await page.getByRole('button', { name: 'Create group' }).click();
 const code = await joinCode(page);
 console.log('created Pure:', code);
 
-await page.getByRole('button', { name: /^People/ }).click();
-await page.getByRole('button', { name: 'Leave group' }).click();
+await page.locator('.back').click();
 await page.waitForSelector('.gate');
 
 const row = page.locator('.recent-row', { hasText: 'Pure' });
@@ -43,8 +42,7 @@ await page.waitForSelector('.chat header', { timeout: 8000 });
 console.log('PASS: one tap back in');
 
 // And it survives a cold reload, not just this page's memory.
-await page.getByRole('button', { name: /^People/ }).click();
-await page.getByRole('button', { name: 'Leave group' }).click();
+await page.locator('.back').click();
 await page.waitForSelector('.gate');
 await page.reload();
 await page.waitForSelector('.gate');

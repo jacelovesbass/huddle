@@ -376,3 +376,5 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 
 /* Always-available escape hatch from a stale cached copy. */
 .refresh { font-size: 19px; line-height: 1; padding: 2px 6px; }
+
+.back { font-size: 26px; line-height: 1; padding: 0 6px 3px; flex: none; margin-left: -4px; }
