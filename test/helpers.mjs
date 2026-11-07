@@ -4,6 +4,7 @@
 // a cleanup() and a launch() that no suite ever imported, which is worse than
 // duplication: dead code that looks like policy.
 import { chromium } from 'playwright';
+import { sessionFor, SESSION_KEY } from './sessions.mjs';
 
 export const BASE = (process.env.TEST_URL || 'http://localhost:5173').replace(/\/$/, '') + '/';
 
@@ -14,7 +15,14 @@ export async function launch() {
 
 /** Open the app as someone, optionally straight into an invite link. */
 export async function open(browser, who, url = BASE) {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 820 } })).newPage();
+  const context = await browser.newContext({ viewport: { width: 390, height: 820 } });
+  // Seed an identity instead of signing in again. Same name, same identity,
+  // so two names are still two genuinely different people.
+  const session = await sessionFor(who);
+  await context.addInitScript(([k, v]) => {
+    try { localStorage.setItem(k, v); } catch { /* first-run about:blank */ }
+  }, [SESSION_KEY, JSON.stringify(session)]);
+  const page = await context.newPage();
   page.on('pageerror', e => console.log(`[${who}] ERROR ${e}`));
   page.on('console', m => m.type() === 'error' && console.log(`[${who}] console ${m.text()}`));
   await page.goto(url);

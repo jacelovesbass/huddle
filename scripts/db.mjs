@@ -39,14 +39,38 @@ export async function connect() {
   throw new Error(`could not connect: ${last?.message}`);
 }
 
-export async function migrate() {
+/**
+ * Apply pending migrations.
+ *
+ * **Gated migrations are skipped unless asked for by name.** A file ending
+ * `.gated.sql` is one that must not run until something OUTSIDE the database
+ * is true: a deploy has landed, a setting has been switched on, a person has
+ * said go. `npm run migrate` ran one of these by accident on 2026-11-07 and
+ * locked the live group out of their own chat, because "apply everything
+ * pending" is the right default right up until it is catastrophically wrong.
+ *
+ *   npm run migrate                      every ordinary migration
+ *   npm run migrate -- --gate 012        that one gated migration as well
+ */
+export async function migrate({ gate = [] } = {}) {
   const client = await connect();
   await client.query(`create table if not exists schema_migrations (
     name text primary key, applied_at timestamptz not null default now())`);
 
   const done = new Set((await client.query('select name from schema_migrations')).rows.map(r => r.name));
   const dir = path.join(ROOT, 'migrations');
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+  const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+
+  const files = all.filter(f => {
+    if (!f.endsWith('.gated.sql')) return true;
+    return gate.some(g => f.startsWith(g));
+  });
+
+  const held = all.filter(f => !files.includes(f) && !done.has(f));
+  if (held.length) {
+    console.log(`  held back (gated): ${held.join(', ')}`);
+    console.log('  run with --gate <prefix> when the precondition is actually met');
+  }
 
   let ran = 0;
   for (const name of files) {
@@ -62,5 +86,9 @@ export async function migrate() {
 }
 
 if (process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]))) {
-  await migrate();
+  const gate = [];
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i] === '--gate' && process.argv[i + 1]) gate.push(process.argv[++i]);
+  }
+  await migrate({ gate });
 }

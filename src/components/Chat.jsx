@@ -61,14 +61,22 @@ export function Chat({ name, room, onBack, onForget }) {
       const { data: es } = await supabase.from('emoji').select('*').in('pack_id', ids);
       if (live) setEmoji(es || []);
     };
-    loadPacks();
-
-
-    // Record that I am here, then read the roster.
-    supabase.from('members')
-      .upsert({ room_id: room.id, name, last_seen: new Date().toISOString() },
-              { onConflict: 'room_id,name' })
-      .then(loadPeople);
+    // Join FIRST, and wait for it.
+    //
+    // Membership is what every table is now gated on, so nothing in this room
+    // is readable until the join lands. Loading packs before it raced: the
+    // emoji query came back empty, a message arrived referencing an emoji the
+    // client did not have, and the other person saw "[emoji]" instead of the
+    // picture. Two runs in four.
+    //
+    // join_room is idempotent, so for somebody already in the group this is
+    // just a heartbeat.
+    const joined = supabase.rpc('join_room', { p_code: room.join_code, p_name: name });
+    joined.then(() => {
+      if (!live) return;
+      loadPeople();
+      loadPacks();
+    });
 
     // Merge rather than replace, because history and live inserts race.
     const merge = incoming => setMsgs(prev => {
@@ -112,12 +120,13 @@ export function Chat({ name, room, onBack, onForget }) {
         if (status !== 'SUBSCRIBED') return;
         ch.track({ name, at: Date.now() });
         // Only now is it safe to read history: anything inserted from here on
-        // arrives over the socket, so the two cannot miss each other.
-        loadHistory();
+        // arrives over the socket, so the two cannot miss each other. And only
+        // after the join, because history is not readable before membership.
+        joined.then(() => live && loadHistory());
       });
 
     return () => { live = false; supabase.removeChannel(ch); };
-  }, [room.id, name]);
+  }, [room.id, room.join_code, name]);
 
   /** Replace one message in place, so a move shows instantly for the player
       who made it rather than after the round trip. */

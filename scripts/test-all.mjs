@@ -12,7 +12,7 @@ import { connect } from './db.mjs';
 const SUITES = [
   'rejoin', 'people', 'packs', 'collision', 'gif',
   'library', 'history-gifs', 'navigation', 'refresh', 'update', 'isolation', 'tools', 'games', 'kelp',
-  'boom', 'boom-cpu', 'versus',
+  'boom', 'boom-cpu', 'versus', 'lockdown',
 ];
 
 // Never put a name here that a real group might plausibly use. 'Pure' was in
