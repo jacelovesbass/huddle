@@ -24,12 +24,26 @@
 -- Every `to anon` policy is replaced by one `to authenticated` policy gated on
 -- membership. Nothing is readable by the key alone any more.
 
+-- The permissive ones.
 drop policy if exists rooms_all    on rooms;
 drop policy if exists messages_all on messages;
 drop policy if exists members_all  on members;
 drop policy if exists packs_all    on packs;
 drop policy if exists emoji_all    on emoji;
 drop policy if exists games_all    on games;
+
+-- And the ones this migration is about to create, so it can be run twice.
+-- It could not be, the first time it was needed.
+drop policy if exists rooms_read      on rooms;
+drop policy if exists messages_read   on messages;
+drop policy if exists messages_write  on messages;
+drop policy if exists messages_edit   on messages;
+drop policy if exists members_read    on members;
+drop policy if exists members_touch   on members;
+drop policy if exists members_leave   on members;
+drop policy if exists packs_rw        on packs;
+drop policy if exists emoji_rw        on emoji;
+drop policy if exists games_rw        on games;
 
 -- Rooms: read only, and only ones you are in. Creating goes through
 -- create_room, so there is deliberately no insert policy.

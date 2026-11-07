@@ -8,6 +8,105 @@ that would otherwise have to be rediscovered.
 
 ---
 
+## 2026-11-07 — The database is closed
+
+The open item from 2026-11-06, standing through four sessions. Every table said
+`for all to anon using (true)`, so the publishable key that ships in the
+browser bundle could read every group, every join code and every message. It
+was demonstrated twice, with one command and no login, against the real
+database holding four people's real conversations.
+
+**What changed.** Every device signs in anonymously: a uuid, no email, no
+password, no login screen, nothing anyone notices. Membership is a row carrying
+that uuid, and every table is gated on it. Rooms are created, found and joined
+through security definer functions, so **the join code is now the capability
+rather than a label**.
+
+The same attack now returns `permission denied for table rooms`, and null for
+everything else. **It is not encryption**: the server can still read
+everything. What changed is that strangers cannot.
+
+**This is also the prerequisite for everything else.** You cannot block a
+malicious user when there are no accounts, so the app store moderation
+requirements were unreachable without it, as was any ability to honour an
+eSafety takedown notice. One piece of work, three obligations. The legal
+research behind that is in the vault note, not here.
+
+### I broke the live chat, for about two minutes
+
+The change was deliberately split into two migrations so there would be no
+window where the app was broken. Then `npm run migrate` applied **both**,
+because of course it applies everything pending, and the door shut while
+anonymous sign-in was still disabled. Nobody could get in, including the app.
+
+Rolled back inside two minutes and verified against the real database rather
+than assumed: 72 messages, both games, four members, reads and writes working.
+No data was at risk, because policies do not touch rows.
+
+**The fix is in the tool, not in my resolve.** A migration may now be named
+`*.gated.sql`, which `npm run migrate` holds back and announces:
+
+    held back (gated): 012_lock_down_access.gated.sql
+    run with --gate <prefix> when the precondition is actually met
+
+A gated migration is one that depends on something **outside** the database
+being true: a deploy having landed, a setting switched on, a person saying go.
+"Apply everything pending" is the right default right up until it is
+catastrophically wrong.
+
+### Three real bugs, and the one that matters most was caught by A/B
+
+1. **The app called the database before sign-in landed.** It rendered its gate
+   immediately, so "Create group" fired with no session and came back `not
+   signed in`. It now waits for a session before rendering anything, which is
+   correct: the database answers nothing without one.
+
+2. **Chat loaded packs before the join granted membership.** A message could
+   then arrive referencing an emoji the other client had not loaded, and the
+   other person saw `[emoji]` instead of the picture. Two runs in four.
+   **I found out whether I had caused it by stashing the work and running the
+   old code four times: 4/4 pass before, 2/4 after.** That took two minutes and
+   turned "flaky test" into "regression I introduced", which are not the same
+   thing and do not get the same fix.
+
+3. **A wrong join code returned a room.** PostgREST renders a NULL composite as
+   a row of NULL columns, so `find_room('AAAAA')` came back as
+   `{id: null, name: null, ...}`, which is an object, which is truthy. A bad
+   code walked into a room with no id. Caught by the lockdown suite, which
+   checks a wrong code returns *nothing* rather than checking a right one
+   works.
+
+### And one bad piece of test infrastructure I wrote
+
+The suite was failing on the anonymous sign-in rate limit, because every
+browser context signed in from scratch: about fifty sign-ins a run against a
+default of thirty an hour. So identities are now pooled on disk and seeded
+straight into localStorage, and expired ones are **refreshed** rather than
+re-minted, which costs nothing against the limit.
+
+The first version of that pool hashed names into eight slots. Two different
+people in a test could therefore collide onto **one identity**: "the other
+person" silently became the same person. It was behind every intermittent
+crash, and the giveaway was the lockdown suite reporting that its
+member-of-nothing stranger could read five rooms. Keyed by name now. **A pool
+that quietly conflates two identities is worse than no pool**, because the
+tests keep running and stop meaning anything.
+
+### State
+
+**125 tests across 18 suites, all passing**, counted from a run rather than by
+adding to a remembered number. The lockdown suite is 16 of those and is written
+as the attack: take the key out of the public bundle, ask for everything,
+assert nothing comes back. A suite phrased as "a member can read their room"
+would pass just as happily with the door wide open.
+
+**Nobody has to do anything.** Each device stores its groups with their join
+codes, so on next load it re-joins and claims the membership row it already
+had. That path is tested on a planted unowned row rather than on the real
+group, because it is the one path that cannot be retried if it is wrong.
+
+---
+
 ## 2026-11-07 — Versus: a game played in the conversation
 
 The MD's idea, and a better one than the multiplayer that was on the table.
