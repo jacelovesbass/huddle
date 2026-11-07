@@ -8,6 +8,64 @@ that would otherwise have to be rediscovered.
 
 ---
 
+## 2026-11-07 — A computer to play against
+
+Tic Tak Toe BOOM! gets a second mode. The start screen now offers **Play a
+friend** or **Play the computer**; the computer takes the amber seat, so the
+human always goes first, and it gets three bombs like anyone else.
+
+**The work was not the opponent, it was separating the rules from the screen.**
+The live grid holds token objects that each carry their own DOM element, and
+`collapse()` rearranges the board and animates it in the same loop. Anything
+that thinks ahead has to try a move, look, and put it back without drawing it.
+So there is now a parallel set of pure functions (`simDrop`, `simBomb`,
+`simCollapse`, `simLongest`) working on a plain array of numbers, with
+`snapshot()` to make one. About 90 lines, and it is the piece a stronger
+opponent would build on later.
+
+**One level, and it reasons in this order:** take a win; take a bomb that wins
+outright; block a single threat; if there are two threats, bomb, because a
+token cannot cover both; otherwise score every drop and every bomb on the same
+scale and play the best.
+
+**The rule the opponent exists to respect.** A four made by the rubble counts
+for whoever it belongs to, so a bomb can hand the human the game. Every bomb
+is therefore collapsed in private first and judged exactly as `judge()` would,
+including the longest-line tiebreak. A bot that skipped this would lose in ways
+that look idiotic.
+
+**Bombs needed a price before it would use them.** The first version only
+bombed to win or to defuse a double threat, and the measurement said it
+finished a game with **all three unused**, which makes the signature mechanic
+decoration. Drops and bombs are now scored on one scale with a `BOMB_COST` of
+10, so a bomb has to be clearly better than a token rather than merely equal.
+Measured after: bombs used in **5 of 8 games**, and spent around moves 8 to 12,
+which is when threats actually form rather than scattered through the opening.
+
+**It beat a scripted human 8 times out of 8.** That number means the logic is
+not broken; it does not mean the opponent is too strong, because the scripted
+human never blocks and never tries to win. Only a person can answer that.
+
+**Two test bugs cost more than the feature did**, and both were the test
+lying rather than the code failing.
+
+1. `newGame()` only reset the board when the game had **ended**. Three
+   scenarios stacked on a dirty board and failed for reasons that had nothing
+   to do with the computer. It now resets unconditionally and asserts the
+   board is empty before going on.
+2. The full-game loop waited for "the turn is back to zero", which is **still
+   true the instant a drop returns**, because the turn only flips 330 ms later.
+   The scripted human fired forty moves before the computer got one, and the
+   failure read as "the computer never moves". It now waits for the move count
+   to advance by two.
+
+**A passing timing check that proved nothing.** The first version reported
+"decides in 0.0 ms", which a `__choose` that did nothing at all would also
+report. It now runs 200 decisions, prints microseconds (7), and separately
+asserts all 200 were legal moves.
+
+---
+
 ## 2026-11-07 — Tic Tak Toe BOOM! (later the same day)
 
 The first game written for this app rather than imported into it. Four in a

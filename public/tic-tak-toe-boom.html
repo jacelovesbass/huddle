@@ -62,7 +62,23 @@
   }
   .tagline { text-align: center; color: var(--muted); font-size: 14px; margin-top: 4px; }
 
+  .modes { display: flex; gap: 8px; }
+  .mode {
+    flex: 1;
+    padding: 11px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .mode.on { border-color: var(--p1); background: #16233a; color: var(--text); }
+
   .names { display: flex; flex-direction: column; gap: 10px; }
+  .name-row.locked input { display: none; }
+  .name-row .fixed { font-weight: 700; }
+  .name-row .fixed small { color: var(--muted); font-weight: 400; margin-left: 6px; }
   .name-row { display: flex; align-items: center; gap: 10px; }
   .name-row .disc { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; }
   .name-row input {
@@ -306,16 +322,22 @@
   </div>
   <p class="tagline">Four in a row. Two players, one phone. Three bombs each.</p>
 
+  <div class="modes">
+    <button class="mode on" id="mFriend">Play a friend</button>
+    <button class="mode" id="mCpu">Play the computer</button>
+  </div>
+
   <div class="names">
     <div class="name-row">
       <span class="disc" style="background:var(--p1)"></span>
       <label class="sr" for="n1">Player one</label>
       <input id="n1" maxlength="14" placeholder="Player 1" autocomplete="off">
     </div>
-    <div class="name-row">
+    <div class="name-row" id="row2">
       <span class="disc" style="background:var(--p2)"></span>
       <label class="sr" for="n2">Player two</label>
       <input id="n2" maxlength="14" placeholder="Player 2" autocomplete="off">
+      <span class="fixed" id="cpuName" hidden>Computer<small>plays amber</small></span>
     </div>
   </div>
 
@@ -327,6 +349,7 @@
       <li>Tap a column to drop your token. It falls to the lowest free slot. <b>Four in a row wins</b>, any direction.</li>
       <li>You get <b>three bombs</b>. Tap BOOM, then tap any token on the board. That token and the <b>four touching it</b>, up, down and either side, are destroyed. Corners survive, your own tokens do not.</li>
       <li>A bomb <b>costs your whole turn</b>, and everything above the hole falls into it.</li>
+      <li><b>Playing the computer?</b> It takes a win when it has one, blocks yours, and will not bomb unless the rubble leaves it ahead. It gets three bombs like you do.</li>
       <li><b>A four made by the collapse still counts</b>, even if it is your opponent's. If the dust settles and you both have four, the <b>longest line wins</b>. Equal longest is a dead heat.</li>
     </ul>
   </details>
@@ -383,6 +406,8 @@
   // every loop. Only the renderer cares which way up the screen is.
   var grid, tokens, turn, bombs, armed, locked, nextId, moves;
   var names = ['Player 1', 'Player 2'];
+  var mode = 'friend';   // 'friend' = two people on this phone, 'cpu' = play the computer
+  var CPU = 1;           // the computer always takes the amber seat, so the human goes first
 
   var $ = function (id) { return document.getElementById(id); };
   var board = $('board'), cells = $('cells');
@@ -514,6 +539,7 @@
 
   function drop(c) {
     if (locked || armed) return;
+    if (mode === 'cpu' && turn === CPU && !cpuActing) return;
     var r = lowestFree(c);
     if (r < 0) {
       var t = cells.querySelector('.col[data-c="' + c + '"]');
@@ -540,6 +566,7 @@
 
   function arm() {
     if (locked) return;
+    if (mode === 'cpu' && turn === CPU) return;
     if (!bombs[turn]) { say('No bombs left.'); return; }
     armed = !armed;
     board.classList.toggle('targeting', armed);
@@ -681,6 +708,236 @@
     return best;
   }
 
+  /* ---------------- The computer ------------------------------------------
+
+     Everything below works on a plain array of numbers, never on the board
+     you can see. The live grid holds token objects that each carry their own
+     DOM element, so trying a move on it would mean drawing it. A computer has
+     to try a move, look at what happened and put it back, which is only safe
+     on a copy nobody is watching.
+
+     There is one level, and it is built to respect the rule that makes this
+     game what it is: a four made by the rubble counts for whoever it belongs
+     to. A bomb is therefore never played without first collapsing the board
+     in private and checking who is left holding the longer line. */
+
+  var EMPTY = -1;
+
+  /** The live board as plain numbers. */
+  function snapshot() {
+    var g = [];
+    for (var r = 0; r < ROWS; r++) {
+      g.push([]);
+      for (var c = 0; c < COLS; c++) g[r].push(grid[r][c] ? grid[r][c].p : EMPTY);
+    }
+    return g;
+  }
+
+  function copy(g) { return g.map(function (row) { return row.slice(); }); }
+
+  function simFree(g, c) {
+    for (var r = 0; r < ROWS; r++) if (g[r][c] === EMPTY) return r;
+    return -1;
+  }
+
+  function simDrop(g, c, p) {
+    var r = simFree(g, c);
+    if (r < 0) return null;
+    var n = copy(g);
+    n[r][c] = p;
+    return n;
+  }
+
+  function simCollapse(g) {
+    var n = [];
+    for (var r = 0; r < ROWS; r++) { n.push([]); for (var c = 0; c < COLS; c++) n[r].push(EMPTY); }
+    for (var cc = 0; cc < COLS; cc++) {
+      var k = 0;
+      for (var rr = 0; rr < ROWS; rr++) if (g[rr][cc] !== EMPTY) { n[k][cc] = g[rr][cc]; k++; }
+    }
+    return n;
+  }
+
+  /** The same plus the real bomb uses, then the same collapse. */
+  function simBomb(g, c0, r0) {
+    var n = copy(g);
+    var B = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0]];
+    for (var i = 0; i < B.length; i++) {
+      var c = c0 + B[i][0], r = r0 + B[i][1];
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      n[r][c] = EMPTY;
+    }
+    return simCollapse(n);
+  }
+
+  function simLongest(g, p) {
+    var best = 0;
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (g[r][c] !== p) continue;
+        for (var d = 0; d < DIRS.length; d++) {
+          var dc = DIRS[d][0], dr = DIRS[d][1];
+          var pr = r - dr, pc = c - dc;
+          if (pr >= 0 && pr < ROWS && pc >= 0 && pc < COLS && g[pr][pc] === p) continue;
+          var len = 0, rr = r, cc = c;
+          while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && g[rr][cc] === p) {
+            len++; rr += dr; cc += dc;
+          }
+          if (len > best) best = len;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Who the position belongs to, by the same rule judge() applies.
+      1 me, -1 them, 0 dead heat, null nobody yet. */
+  function verdict(g, me, them) {
+    var a = simLongest(g, me), b = simLongest(g, them);
+    if (a >= NEED && b >= NEED) return a > b ? 1 : (b > a ? -1 : 0);
+    if (a >= NEED) return 1;
+    if (b >= NEED) return -1;
+    return null;
+  }
+
+  /** Columns where p drops and wins outright, right now. */
+  function winningDrops(g, p) {
+    var out = [];
+    for (var c = 0; c < COLS; c++) {
+      var n = simDrop(g, c, p);
+      if (n && simLongest(n, p) >= NEED) out.push(c);
+    }
+    return out;
+  }
+
+  function occupied(g) {
+    var out = [];
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) if (g[r][c] !== EMPTY) out.push([c, r]);
+    return out;
+  }
+
+  /** A move is unsafe if it hands the other player a win on their next turn. */
+  function safe(g, them) { return winningDrops(g, them).length === 0; }
+
+  /** How much I like a board. Their longest counts for slightly more than
+      mine, because in a game where four ends it, stopping them matters more
+      than building. */
+  function position(g, me, them) {
+    return 10 * simLongest(g, me) - 12 * simLongest(g, them);
+  }
+
+  /** What a bomb has to beat a plain token by before it is worth spending one
+      of three. Tuned by playing: at 0 it bombs constantly, high and it never
+      does and the pips are decoration. */
+  var BOMB_COST = 10;
+
+  /**
+   * Pick a move. Order matters: take a win, stop theirs, then play position.
+   * Returns {kind:'drop', c} or {kind:'bomb', c, r}.
+   */
+  function choose(me) {
+    var them = 1 - me;
+    var g = snapshot();
+    var haveBomb = bombs[me] > 0;
+    var i, n, c, cell;
+
+    // 1. A drop that wins. Nothing beats finishing.
+    var mine = winningDrops(g, me);
+    if (mine.length) return { kind: 'drop', c: mine[0] };
+
+    // 2. A bomb that wins. Only counts if the rubble leaves me holding the
+    //    longer line, which is the whole trap in this game.
+    if (haveBomb) {
+      var cells = occupied(g);
+      for (i = 0; i < cells.length; i++) {
+        if (verdict(simBomb(g, cells[i][0], cells[i][1]), me, them) === 1) {
+          return { kind: 'bomb', c: cells[i][0], r: cells[i][1] };
+        }
+      }
+    }
+
+    // 3. Stop them finishing. One threat can be covered by sitting on it.
+    var threats = winningDrops(g, them);
+    if (threats.length === 1) return { kind: 'drop', c: threats[0] };
+
+    // 4. Two threats at once cannot both be covered by a token, so this is
+    //    what a bomb is actually for: clear the board under them. Never take
+    //    one that hands them the game on the collapse.
+    if (threats.length > 1 && haveBomb) {
+      var cells2 = occupied(g);
+      for (i = 0; i < cells2.length; i++) {
+        n = simBomb(g, cells2[i][0], cells2[i][1]);
+        var v = verdict(n, me, them);
+        if (v === -1) continue;
+        if (v === 1) return { kind: 'bomb', c: cells2[i][0], r: cells2[i][1] };
+        if (winningDrops(n, them).length === 0) {
+          return { kind: 'bomb', c: cells2[i][0], r: cells2[i][1] };
+        }
+      }
+    }
+    if (threats.length > 1) return { kind: 'drop', c: threats[0] }; // lost anyway, cover one
+
+    // 5. Nothing forced, so play position. Drops and bombs are scored on the
+    //    same scale and the best one wins, which is what stops the bombs
+    //    sitting unused all game. They carry a cost because there are only
+    //    three, so a bomb has to be clearly better than a token, not equal.
+    var best = null, bestScore = -1e9;
+
+    for (c = 0; c < COLS; c++) {
+      n = simDrop(g, c, me);
+      if (!n) continue;
+      var score = position(n, me, them) + (3 - Math.abs(c - 3)) + Math.random();
+      if (!safe(n, them)) score -= 1000;        // do not gift the next move
+      if (score > bestScore) { bestScore = score; best = { kind: 'drop', c: c }; }
+    }
+
+    if (haveBomb) {
+      var cells3 = occupied(g);
+      for (i = 0; i < cells3.length; i++) {
+        n = simBomb(g, cells3[i][0], cells3[i][1]);
+        if (verdict(n, me, them) !== null) continue;   // settled positions are steps 2 and 4
+        var bscore = position(n, me, them) - BOMB_COST + Math.random();
+        if (!safe(n, them)) bscore -= 1000;
+        if (bscore > bestScore) {
+          bestScore = bscore;
+          best = { kind: 'bomb', c: cells3[i][0], r: cells3[i][1] };
+        }
+      }
+    }
+
+    if (best) return best;
+
+    // 6. Every column full and nothing scored. Bomb rather than stall.
+    if (haveBomb) {
+      cell = occupied(g)[0];
+      if (cell) return { kind: 'bomb', c: cell[0], r: cell[1] };
+    }
+    return null;
+  }
+
+  /** Take the turn, through the same code a finger goes through. */
+  var cpuActing = false;
+
+  function computerTurn() {
+    if (mode !== 'cpu' || turn !== CPU || over()) return;
+    var move = choose(CPU);
+    if (!move) return;
+    cpuActing = true;
+    locked = false;
+    if (move.kind === 'drop') { drop(move.c); }
+    else { armed = true; detonate(move.c, move.r); }
+    cpuActing = false;
+  }
+
+  /** Hand over, and let the computer think for a beat so it feels played. */
+  function maybeComputer() {
+    if (mode !== 'cpu' || turn !== CPU || over()) return;
+    locked = true;
+    paint();
+    say(names[CPU] + ' is thinking...');
+    setTimeout(function () { say(''); computerTurn(); }, 600);
+  }
+
   /* ---------------- Chrome ------------------------------------------------ */
 
   function paint() {
@@ -702,7 +959,7 @@
 
   function over() { return $('over').classList.contains('on') || $('game').classList.contains('ended'); }
 
-  function hand() { turn = 1 - turn; paint(); }
+  function hand() { turn = 1 - turn; paint(); maybeComputer(); }
   function say(s) { $('hint').textContent = s; }
 
   function finish(winner, run) {
@@ -767,10 +1024,20 @@
 
   /* ---------------- Wiring ------------------------------------------------ */
 
+  function setMode(m) {
+    mode = m;
+    $('mFriend').classList.toggle('on', m === 'friend');
+    $('mCpu').classList.toggle('on', m === 'cpu');
+    $('row2').classList.toggle('locked', m === 'cpu');
+    $('cpuName').hidden = m !== 'cpu';
+  }
+  $('mFriend').addEventListener('click', function () { setMode('friend'); });
+  $('mCpu').addEventListener('click', function () { setMode('cpu'); });
+
   $('go').addEventListener('click', function () {
     audio();
     names[0] = ($('n1').value || 'Player 1').trim().slice(0, 14);
-    names[1] = ($('n2').value || 'Player 2').trim().slice(0, 14);
+    names[1] = mode === 'cpu' ? 'Computer' : ($('n2').value || 'Player 2').trim().slice(0, 14);
     if (names[0] === names[1]) names[1] = names[1] + ' (2)';
     $('start').style.display = 'none';
     $('game').style.display = 'flex';
@@ -797,11 +1064,17 @@
 
   window.__drop = function (c) { locked = false; armed = false; drop(c); };
   window.__bomb = function (c, r) { locked = false; armed = true; detonate(c, r); };
+  window.__mode = function (m) { setMode(m); };
+  window.__reset = function () { reset(); };
+  window.__choose = function () { return choose(CPU); };
+  // What a given bomb would be worth to the computer: 1 win, -1 loss, 0 heat, null open.
+  window.__bombWorth = function (c, r) { return verdict(simBomb(snapshot(), c, r), CPU, 1 - CPU); };
   window.__state = function () {
     return {
       turn: turn, names: names, bombs: bombs.slice(), moves: moves, locked: locked,
       over: $('over').classList.contains('on'), result: result,
       longest: [longest(0).len, longest(1).len],
+      mode: mode,
       grid: grid.map(function (row) { return row.map(function (t) { return t ? t.p : -1; }); })
     };
   };
