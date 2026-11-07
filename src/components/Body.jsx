@@ -2,10 +2,12 @@ import { splitBody } from '../lib/packs.js';
 import { RENDERERS } from '../tools/index.js';
 
 /** A message body: text with [[e:id]] tokens swapped for pictures. */
-export function Body({ message, body, byId }) {
+export function Body({ message, body, byId, name, onUpdate, onSend }) {
   // A tool that invented its own kind draws its own messages.
   const Custom = message && RENDERERS[message.kind];
-  if (Custom) return <Custom message={message} />;
+  // A renderer that is interactive needs to know who is looking and how to
+  // write back. A score card ignores both.
+  if (Custom) return <Custom message={message} name={name} onUpdate={onUpdate} onSend={onSend} />;
 
   return splitBody(body).map((part, i) => {
     if (part.text !== undefined) return <span key={i}>{part.text}</span>;

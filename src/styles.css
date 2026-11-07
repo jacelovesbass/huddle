@@ -457,3 +457,72 @@ button.link { background: none; color: var(--muted); padding: 4px; font-weight: 
 .score-card { display: inline-flex; align-items: baseline; gap: 8px; }
 .score-value { font-size: 1.7em; font-weight: 700; line-height: 1; }
 .score-game { font-size: .9em; opacity: .85; }
+
+/* ---------- Versus: a game board drawn inside a message ---------- */
+
+/* A board has to escape the bubble's colour. "My" bubbles are the same blue
+   as player one's tokens, which made the board unreadable for the person who
+   started the game and fine for everyone else. It paints over the bubble's
+   own padding rather than relying on :has(). */
+.versus {
+  display: block;
+  margin: -9px -13px;
+  padding: 10px 12px;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 18px;
+  width: calc(100% + 26px);
+}
+
+/* A board needs the room a sentence does not. */
+.row:has(> .bubble > .versus) .bubble { max-width: min(92%, 420px); width: 100%; }
+
+.versus-head { font-size: 13px; margin-bottom: 6px; }
+.vdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+.vdot.vp1, .vcell.vp1 { background: #3b82f6; }
+.vdot.vp2, .vcell.vp2 { background: #f59e0b; }
+
+.vboard {
+  background: #0f1319;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 4px;
+}
+.vrow { display: flex; }
+
+.vcell {
+  flex: 1;
+  aspect-ratio: 1;
+  margin: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #080a0e;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.6);
+}
+.vcell.can { cursor: pointer; }
+.vboard:not(.aiming) .vcell.can:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); }
+.vboard.aiming .vcell.can { box-shadow: inset 0 0 0 2px rgba(248,179,68,.8); }
+
+.vcell.vwin { box-shadow: 0 0 0 2px #fff, 0 0 10px 2px rgba(255,255,255,.5); }
+
+.versus-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 13px;
+}
+
+.vboom {
+  margin-left: auto;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #2a1a10;
+  border: 1px solid #6b3a16;
+  color: #f8b344;
+}
+.vboom[disabled] { opacity: .35; }
+.vboom.on { background: #f8b344; color: #241300; }

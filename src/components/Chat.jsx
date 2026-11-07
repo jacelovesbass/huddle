@@ -87,6 +87,11 @@ export function Chat({ name, room, onBack, onForget }) {
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
         ({ new: m }) => merge([m]))
+      // Messages used to be write once. A Versus board is one message edited
+      // on every turn, so an edit has to travel the same way a new one does.
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
+        ({ new: m }) => merge([m]))
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'members', filter: `room_id=eq.${room.id}` },
         loadPeople)
@@ -113,6 +118,10 @@ export function Chat({ name, room, onBack, onForget }) {
 
     return () => { live = false; supabase.removeChannel(ch); };
   }, [room.id, name]);
+
+  /** Replace one message in place, so a move shows instantly for the player
+      who made it rather than after the round trip. */
+  const patch = m => setMsgs(prev => prev.map(x => (x.id === m.id ? m : x)));
 
   /** Send a message a tool built, rather than something typed. */
   async function sendStructured({ kind = 'text', payload = null, body = '' }) {
@@ -184,7 +193,8 @@ export function Chat({ name, room, onBack, onForget }) {
             <div key={m.id} className={'row ' + (mine ? 'mine' : 'theirs')}>
               <div className="bubble">
                 {!mine && !runOn && <div className="who">{m.author}</div>}
-                <Body message={m} body={m.body} byId={byId} />
+                <Body message={m} body={m.body} byId={byId}
+                      name={name} onUpdate={patch} onSend={sendStructured} />
               </div>
             </div>
           );
@@ -196,6 +206,7 @@ export function Chat({ name, room, onBack, onForget }) {
         <Sheet
           key={id}
           room={room} name={name} packs={packs} emoji={emoji} msgs={msgs}
+          people={people} online={online}
           onSendText={text => { setDraft(d => (d ? d + ' ' : '') + text); setOpenTool(null); }}
           onSendEmoji={e => {
             // By identity, not by name: two packs may share a shortcode.

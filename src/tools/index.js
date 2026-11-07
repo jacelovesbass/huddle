@@ -6,8 +6,9 @@
 import { emojiTool } from './emoji.jsx';
 import { gifTool } from './gif.jsx';
 import { gamesTool } from './games.jsx';
+import { versusTool } from './versus.jsx';
 
-export const TOOLS = [emojiTool, gifTool, gamesTool];
+export const TOOLS = [emojiTool, gifTool, gamesTool, versusTool];
 
 /** Renderers contributed by tools, keyed by messages.kind. */
 export const RENDERERS = Object.fromEntries(

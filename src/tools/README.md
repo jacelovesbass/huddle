@@ -1,7 +1,12 @@
 # Tools
 
-A tool is a button on the composer bar and the sheet it opens. Emoji and GIF
-are tools. Games will be a tool. Anything somebody brings later is a tool.
+A tool is a button on the composer bar and the sheet it opens. Emoji, GIF,
+Games and Versus are tools. Anything somebody brings later is a tool.
+
+**Games and Versus are deliberately separate buttons.** Games means "anyone's
+HTML file, sealed in a sandbox, play it yourself". Versus means "built in, two
+of you, on a board that lives in the conversation". One button for both would
+have forced each idea to compromise for the other.
 
 **The built-ins go through this same contract on purpose.** If they used a
 private path, the public one would rot before anyone outside ever touched it.
@@ -27,6 +32,7 @@ Rendered inside the chat when the button is tapped. It receives:
 | `room`, `name` | The group, and who you are |
 | `packs`, `emoji` | The group's packs and emoji, already loaded |
 | `msgs` | The conversation, for a tool that works from what is already there |
+| `people`, `online` | The roster and who is connected, already loaded and kept live. **Use these rather than querying `members`**, or you race the other person's arrival |
 | `onSendText(text)` | Put text in the message box |
 | `onSendEmoji(emoji)` | Put a specific emoji in the box, by identity not name |
 | `onSend({kind, payload, body})` | Send a structured message |
@@ -38,9 +44,23 @@ mind before it leaves.
 
 ### `render`
 
-Optional. `{ kind, Component }`, where `Component` receives `{ message }` and
-draws messages whose `messages.kind` matches. Text messages are handled by the
-app; a tool only needs this if it invents a new kind.
+Optional. `{ kind, Component }`, where `Component` draws messages whose
+`messages.kind` matches. Text messages are handled by the app; a tool only
+needs this if it invents a new kind.
+
+`Component` receives:
+
+| Prop | What it is |
+|---|---|
+| `message` | The row |
+| `name` | Who is looking, so an interactive message knows whose turn it is |
+| `onUpdate(message)` | Replace it locally, so your own move shows before the round trip |
+| `onSend({kind, payload, body})` | Send a new message, for something like Rematch |
+
+**A message can be edited, not just drawn.** Versus is one message whose payload
+carries the move list, updated on every turn; the chat subscribes to UPDATE as
+well as INSERT so the other phone sees it. If you write a renderer that edits
+its own row, that is the path.
 
 ## Adding one
 

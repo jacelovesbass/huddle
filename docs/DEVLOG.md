@@ -8,6 +8,55 @@ that would otherwise have to be rediscovered.
 
 ---
 
+## 2026-11-07 — Versus: a game played in the conversation
+
+The MD's idea, and a better one than the multiplayer that was on the table.
+Rather than two phones sharing game state, the board **is a message**. One row,
+whose payload carries the move list, edited on every turn.
+
+**Almost no new machinery, because a chat already is the hard part.** An
+ordered, live, durable list of events is exactly what a turn based game needs.
+No session table, no second realtime channel, no answer required for "what if
+someone closes the app mid game" - the board is still sitting there. Every
+phone replays the move list and arrives at the same board, so nobody is in
+charge.
+
+**One change to the chat itself:** messages used to be write once, and the
+client only listened for INSERT. A Versus board is one message edited
+repeatedly, so it now listens for UPDATE too.
+
+**A separate button, on the MD's call, and it was the right one.** Games means
+"anyone's HTML file, sealed in a sandbox, play it yourself". Versus means
+"built in, two of you, live in the chat". A sandboxed game cannot draw into a
+bubble and must not be trusted with the state, so one button would have forced
+both ideas to compromise. Two buttons, and neither has to.
+
+**The cost, named rather than hidden: BOOM's rules now exist twice.** Once
+sealed inside `public/tic-tak-toe-boom.html`, which cannot import anything by
+definition, and once in `src/lib/boom.js`. `test/test-versus.mjs` runs the same
+move lists through both engines and compares the board, the bombs, the longest
+runs and whether the game is over. Four scenarios including the collapse case.
+**That test is the only thing standing between here and two games with the same
+name and different rules.**
+
+**The contract grew, slightly.** A renderer used to receive only `{ message }`.
+An interactive one needs to know who is looking and how to write back, so it
+now gets `name`, `onUpdate` and `onSend`. Sheets also now receive `people` and
+`online` from the chat, which already holds the roster live.
+
+**Found by a flaky test, and it was a real bug.** The Versus sheet queried
+`members` itself when it opened, and raced the other person's arrival: open it
+a second too early and they were simply not in the list. The chat already had
+the roster over the socket. Passing it down removed both the race and a
+duplicate query.
+
+**Found by looking, not by a test:** the board rendered inside the sender's own
+message bubble, which is the same blue as player one's tokens. Unreadable for
+whoever started the game, fine for everyone else. The board now paints its own
+panel over the bubble's padding.
+
+---
+
 ## 2026-11-07 — A computer to play against
 
 Tic Tak Toe BOOM! gets a second mode. The start screen now offers **Play a
