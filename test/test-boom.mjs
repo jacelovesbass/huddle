@@ -51,6 +51,14 @@ console.log(prefill === 'Jason'
   ? 'PASS: the host handshake prefilled player one as Jason'
   : `FAIL: player one prefilled as "${prefill}"`);
 
+/* ---- Plurals, because "1 bombs left" reached the real group chat ---- */
+
+const phrases = await g.locator('body').evaluate(() =>
+  [0, 1, 2, 3].map(n => window.__bombPhrase(n)));
+console.log(JSON.stringify(phrases) === JSON.stringify(['0 bombs', '1 bomb', '2 bombs', '3 bombs'])
+  ? 'PASS: one bomb, two bombs'
+  : `FAIL: ${JSON.stringify(phrases)}`);
+
 await g.locator('#n2').fill('Foxy');
 await g.locator('#go').click();
 await g.locator('#board').waitFor();

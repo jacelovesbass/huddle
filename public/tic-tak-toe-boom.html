@@ -994,12 +994,12 @@
       sub.textContent = run.len + ' in a row, ' + moves + ' moves, ' +
         (spare === BOMBS ? 'without using a bomb.'
           : spare === 0 ? 'and every bomb spent.'
-          : spare + (spare === 1 ? ' bomb' : ' bombs') + ' still in hand.');
+          : bombPhrase(spare) + ' still in hand.');
       light(run.cellsIn);
       result = {
         score: run.len,
         detail: names[winner] + ' beat ' + names[1 - winner] + ', ' + run.len +
-          ' in a row, ' + bombs[winner] + ' bombs left'
+          ' in a row, ' + bombPhrase(bombs[winner]) + ' left'
       };
     }
 
@@ -1007,6 +1007,9 @@
   }
 
   function light(list) { list.forEach(function (t) { t.el.classList.add('win'); }); }
+
+  /** One bomb, two bombs. The chat card said "1 bombs left" in a real game. */
+  function bombPhrase(n) { return n + (n === 1 ? ' bomb' : ' bombs'); }
 
   var result = null;
 
@@ -1066,6 +1069,7 @@
   window.__bomb = function (c, r) { locked = false; armed = true; detonate(c, r); };
   window.__mode = function (m) { setMode(m); };
   window.__reset = function () { reset(); };
+  window.__bombPhrase = bombPhrase;
   window.__choose = function () { return choose(CPU); };
   // What a given bomb would be worth to the computer: 1 win, -1 loss, 0 heat, null open.
   window.__bombWorth = function (c, r) { return verdict(simBomb(snapshot(), c, r), CPU, 1 - CPU); };
